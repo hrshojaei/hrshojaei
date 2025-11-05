@@ -2,7 +2,7 @@
 Main application - FastAPI server and CLI interface
 """
 import sys
-from fastapi import FastAPI, Form, Request, Response
+from fastapi import FastAPI, Form, Request, Response, WebSocket
 from fastapi.responses import PlainTextResponse
 import uvicorn
 from loguru import logger
@@ -11,7 +11,7 @@ import asyncio
 
 from src.config import settings
 from src.candidate_manager import CandidateManager
-from src.twilio_client import TwilioVoiceClient
+from src.twilio_client import TwilioVoiceClient, TwiMLGenerator
 from src.call_handler import call_handler
 
 
@@ -159,6 +159,48 @@ async def get_statistics():
     return stats
 
 
+# ElevenLabs Conversational AI Endpoints
+@app.websocket("/ws/media-stream/{call_sid}")
+async def websocket_media_stream(websocket: WebSocket, call_sid: str):
+    """Handle Twilio Media Stream WebSocket for ElevenLabs"""
+    from src.elevenlabs_media_handler import MediaStreamBridge
+
+    logger.info(f"Media Stream WebSocket connected for call {call_sid}")
+
+    bridge = MediaStreamBridge(
+        agent_id=settings.elevenlabs_agent_id,
+        api_key=settings.elevenlabs_api_key
+    )
+
+    await bridge.handle_twilio_stream(websocket)
+
+
+@app.post("/webhook/call/start-elevenlabs", response_class=PlainTextResponse)
+async def webhook_call_start_elevenlabs(
+    request: Request,
+    CallSid: str = Form(...),
+    From: Optional[str] = Form(None),
+    To: Optional[str] = Form(None)
+):
+    """
+    Webhook for ElevenLabs Conversational AI calls
+    Uses Twilio Media Streams instead of Gather
+    """
+    logger.info(f"ElevenLabs call start: {CallSid}")
+
+    # Build WebSocket URL for Media Streams
+    # Replace http:// with ws:// or https:// with wss://
+    ws_url = settings.public_url.replace("http://", "ws://").replace("https://", "wss://")
+    stream_url = f"{ws_url}/ws/media-stream/{CallSid}"
+
+    logger.info(f"Connecting to ElevenLabs via Media Stream: {stream_url}")
+
+    # Generate TwiML to connect Media Stream
+    twiml = TwiMLGenerator.generate_media_stream_connect(stream_url)
+
+    return Response(content=twiml, media_type="application/xml")
+
+
 # CLI Functions
 def start_server():
     """Start the FastAPI server"""
@@ -195,7 +237,15 @@ def make_test_call(phone: str):
 
     # Make call
     twilio_client = TwilioVoiceClient()
-    webhook_url = f"{settings.public_url}/webhook/call/start?candidate_id={candidate_id}"
+
+    # Use ElevenLabs webhook if enabled
+    if settings.use_elevenlabs_conversational:
+        webhook_url = f"{settings.public_url}/webhook/call/start-elevenlabs"
+        logger.info("Using ElevenLabs Conversational AI")
+    else:
+        webhook_url = f"{settings.public_url}/webhook/call/start?candidate_id={candidate_id}"
+        logger.info("Using traditional OpenAI flow")
+
     status_callback_url = f"{settings.public_url}/webhook/call/status"
 
     try:
@@ -245,7 +295,12 @@ def start_campaign(max_calls: int = 10):
         try:
             print(f"\nCalling {candidate.name} ({candidate.phone})...")
 
-            webhook_url = f"{settings.public_url}/webhook/call/start?candidate_id={candidate.id}"
+            # Use ElevenLabs webhook if enabled
+            if settings.use_elevenlabs_conversational:
+                webhook_url = f"{settings.public_url}/webhook/call/start-elevenlabs"
+            else:
+                webhook_url = f"{settings.public_url}/webhook/call/start?candidate_id={candidate.id}"
+
             status_callback_url = f"{settings.public_url}/webhook/call/status"
 
             call_sid = twilio_client.make_call(
