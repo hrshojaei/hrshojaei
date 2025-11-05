@@ -86,6 +86,29 @@ class TwiMLGenerator:
     """Generate TwiML responses for Twilio webhooks"""
 
     @staticmethod
+    def generate_media_stream_connect(stream_url: str) -> str:
+        """
+        Generate TwiML to connect Media Stream for ElevenLabs
+
+        Args:
+            stream_url: WebSocket URL for media streaming
+
+        Returns:
+            TwiML XML string
+        """
+        from twilio.twiml.voice_response import Connect, Stream
+
+        response = VoiceResponse()
+
+        # Start Media Stream
+        connect = Connect()
+        stream = Stream(url=stream_url)
+        connect.append(stream)
+        response.append(connect)
+
+        return str(response)
+
+    @staticmethod
     def generate_greeting(greeting_text: str, gather_url: str) -> str:
         """
         Generate TwiML for greeting and gathering user input

@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     deepgram_api_key: Optional[str] = None
     elevenlabs_api_key: Optional[str] = None
     elevenlabs_voice_id: str = "21m00Tcm4TlvDq8ikWAM"
+    elevenlabs_agent_id: Optional[str] = None
+    use_elevenlabs_conversational: bool = False  # Use ElevenLabs Conversational AI instead of traditional flow
 
     # Server Configuration
     server_host: str = "0.0.0.0"
