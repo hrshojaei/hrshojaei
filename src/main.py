@@ -20,10 +20,12 @@ def get_telephony_client():
     """Factory function to get the appropriate telephony client"""
     if settings.telephony_provider == "sipgate":
         return SipgateClient(
+            phone_number=settings.sipgate_phone_number,
+            webhook_url=settings.public_url,
             email=settings.sipgate_email,
             password=settings.sipgate_password,
-            phone_number=settings.sipgate_phone_number,
-            webhook_url=settings.public_url
+            token_id=settings.sipgate_token_id,
+            token=settings.sipgate_token
         )
     else:  # default to twilio
         return TwilioVoiceClient()

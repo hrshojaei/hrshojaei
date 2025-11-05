@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     # Sipgate Configuration
     sipgate_email: Optional[str] = None
     sipgate_password: Optional[str] = None
+    sipgate_token_id: Optional[str] = None
+    sipgate_token: Optional[str] = None
     sipgate_phone_number: Optional[str] = None
 
     # AI Provider
@@ -77,8 +79,12 @@ class Settings(BaseSettings):
             if not all([self.twilio_account_sid, self.twilio_auth_token, self.twilio_phone_number]):
                 raise ValueError("Twilio credentials required when TELEPHONY_PROVIDER is 'twilio'")
         elif self.telephony_provider == "sipgate":
-            if not all([self.sipgate_email, self.sipgate_password, self.sipgate_phone_number]):
-                raise ValueError("Sipgate credentials required when TELEPHONY_PROVIDER is 'sipgate'")
+            if not self.sipgate_phone_number:
+                raise ValueError("SIPGATE_PHONE_NUMBER is required")
+            has_token = self.sipgate_token_id and self.sipgate_token
+            has_password = self.sipgate_email and self.sipgate_password
+            if not (has_token or has_password):
+                raise ValueError("Sipgate credentials required: either (SIPGATE_TOKEN_ID + SIPGATE_TOKEN) or (SIPGATE_EMAIL + SIPGATE_PASSWORD)")
 
         return True
 

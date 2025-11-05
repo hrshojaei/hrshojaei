@@ -13,28 +13,38 @@ class SipgateClient:
 
     def __init__(
         self,
-        email: str,
-        password: str,
         phone_number: str,
-        webhook_url: Optional[str] = None
+        webhook_url: Optional[str] = None,
+        email: Optional[str] = None,
+        password: Optional[str] = None,
+        token_id: Optional[str] = None,
+        token: Optional[str] = None
     ):
         """
         Initialize Sipgate client
 
         Args:
-            email: Sipgate account email
-            password: Sipgate account password
             phone_number: Your Sipgate phone number (E.164 format, e.g. +4922838755035)
             webhook_url: Base URL for webhooks (e.g. https://candidateai.de)
+            email: Sipgate account email (for Basic Auth)
+            password: Sipgate account password (for Basic Auth)
+            token_id: Sipgate API token ID (for Token Auth - recommended)
+            token: Sipgate API token secret (for Token Auth - recommended)
         """
-        self.email = email
-        self.password = password
         self.phone_number = phone_number
         self.webhook_url = webhook_url
         self.base_url = "https://api.sipgate.com/v2"
 
-        # Create Basic Auth header
-        credentials = f"{email}:{password}"
+        # Create Basic Auth header - prefer token over email/password
+        if token_id and token:
+            credentials = f"{token_id}:{token}"
+            logger.info(f"Sipgate client using Token authentication")
+        elif email and password:
+            credentials = f"{email}:{password}"
+            logger.info(f"Sipgate client using Email/Password authentication")
+        else:
+            raise ValueError("Either (token_id + token) or (email + password) must be provided")
+
         encoded = base64.b64encode(credentials.encode()).decode()
         self.headers = {
             "Authorization": f"Basic {encoded}",
