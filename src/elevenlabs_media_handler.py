@@ -5,6 +5,7 @@ Handles bidirectional audio streaming between Twilio and ElevenLabs
 import asyncio
 import json
 import base64
+import audioop
 from fastapi import WebSocket
 from loguru import logger
 
@@ -14,6 +15,11 @@ from src.elevenlabs_client import ElevenLabsConversationalAI
 class MediaStreamBridge:
     """Bridges Twilio Media Streams with ElevenLabs Conversational AI"""
 
+    # Audio format constants
+    TWILIO_SAMPLE_RATE = 8000  # Twilio uses 8kHz
+    ELEVENLABS_SAMPLE_RATE = 16000  # ElevenLabs expects 16kHz
+    SAMPLE_WIDTH = 2  # 16-bit audio (2 bytes per sample)
+
     def __init__(self, agent_id: str, api_key: str):
         self.agent_id = agent_id
         self.api_key = api_key
@@ -21,6 +27,8 @@ class MediaStreamBridge:
         self.twilio_ws = None
         self.stream_sid = None
         self.is_active = True
+        self.resampler_state_to_eleven = None  # State for upsampling to ElevenLabs
+        self.resampler_state_to_twilio = None  # State for downsampling to Twilio
 
     async def handle_twilio_stream(self, websocket: WebSocket):
         """Handle incoming Twilio Media Stream WebSocket"""
@@ -76,15 +84,24 @@ class MediaStreamBridge:
                     payload = data.get("media", {}).get("payload")
 
                     if payload and self.elevenlabs_client:
-                        # Decode mulaw audio
+                        # Decode mulaw audio from base64
                         audio_mulaw = base64.b64decode(payload)
 
-                        # Convert mulaw to PCM (ElevenLabs expects PCM)
-                        # Note: This is simplified - production needs proper conversion
-                        # For now, send as-is and ElevenLabs will handle
+                        # Convert mulaw to linear PCM (16-bit)
+                        audio_pcm_8k = audioop.ulaw2lin(audio_mulaw, self.SAMPLE_WIDTH)
 
-                        # Send to ElevenLabs
-                        await self.elevenlabs_client.send_audio(audio_mulaw)
+                        # Upsample from 8kHz to 16kHz for ElevenLabs
+                        audio_pcm_16k, self.resampler_state_to_eleven = audioop.ratecv(
+                            audio_pcm_8k,
+                            self.SAMPLE_WIDTH,
+                            1,  # channels (mono)
+                            self.TWILIO_SAMPLE_RATE,
+                            self.ELEVENLABS_SAMPLE_RATE,
+                            self.resampler_state_to_eleven
+                        )
+
+                        # Send PCM audio to ElevenLabs
+                        await self.elevenlabs_client.send_audio(audio_pcm_16k)
 
                 elif event == "stop":
                     logger.info("Media stream stopped")
@@ -125,8 +142,24 @@ class MediaStreamBridge:
             return
 
         try:
-            # Convert PCM to mulaw (simplified - production needs proper conversion)
-            audio_b64 = base64.b64encode(audio_bytes).decode('utf-8')
+            # audio_bytes is PCM at 16kHz from ElevenLabs
+            # Need to convert to mulaw at 8kHz for Twilio
+
+            # Downsample from 16kHz to 8kHz
+            audio_pcm_8k, self.resampler_state_to_twilio = audioop.ratecv(
+                audio_bytes,
+                self.SAMPLE_WIDTH,
+                1,  # channels (mono)
+                self.ELEVENLABS_SAMPLE_RATE,
+                self.TWILIO_SAMPLE_RATE,
+                self.resampler_state_to_twilio
+            )
+
+            # Convert linear PCM to mulaw
+            audio_mulaw = audioop.lin2ulaw(audio_pcm_8k, self.SAMPLE_WIDTH)
+
+            # Encode to base64 for Twilio
+            audio_b64 = base64.b64encode(audio_mulaw).decode('utf-8')
 
             message = {
                 "event": "media",
