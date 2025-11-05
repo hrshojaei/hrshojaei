@@ -25,7 +25,8 @@ def get_telephony_client():
             email=settings.sipgate_email,
             password=settings.sipgate_password,
             token_id=settings.sipgate_token_id,
-            token=settings.sipgate_token
+            token=settings.sipgate_token,
+            device_id=settings.sipgate_device_id
         )
     else:  # default to twilio
         return TwilioVoiceClient()

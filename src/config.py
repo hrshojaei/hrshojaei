@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     sipgate_token_id: Optional[str] = None
     sipgate_token: Optional[str] = None
     sipgate_phone_number: Optional[str] = None
+    sipgate_device_id: Optional[str] = None  # Device ID (e.g. 'y0') - auto-detected if not provided
 
     # AI Provider
     ai_provider: str = "anthropic"  # "anthropic" or "openai"

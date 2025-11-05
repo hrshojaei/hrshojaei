@@ -18,7 +18,8 @@ class SipgateClient:
         email: Optional[str] = None,
         password: Optional[str] = None,
         token_id: Optional[str] = None,
-        token: Optional[str] = None
+        token: Optional[str] = None,
+        device_id: Optional[str] = None
     ):
         """
         Initialize Sipgate client
@@ -30,10 +31,12 @@ class SipgateClient:
             password: Sipgate account password (for Basic Auth)
             token_id: Sipgate API token ID (for Token Auth - recommended)
             token: Sipgate API token secret (for Token Auth - recommended)
+            device_id: Device ID for making calls (e.g. 'y0'). If not provided, will be auto-detected.
         """
         self.phone_number = phone_number
         self.webhook_url = webhook_url
         self.base_url = "https://api.sipgate.com/v2"
+        self.device_id = device_id  # Store device ID
 
         # Create Basic Auth header - prefer token over email/password
         if token_id and token:
@@ -51,7 +54,7 @@ class SipgateClient:
             "Content-Type": "application/json"
         }
 
-        logger.info(f"Sipgate client initialized for {phone_number}")
+        logger.info(f"Sipgate client initialized for {phone_number} (device: {device_id or 'auto-detect'})")
 
     async def make_call(
         self,
@@ -75,13 +78,19 @@ class SipgateClient:
         to_number = self._normalize_number(to_number)
         caller_id = self._normalize_number(caller_id)
 
+        # Get device ID (use stored one or auto-detect)
+        device_id = await self._get_device_id()
+
         payload = {
+            "deviceId": device_id,
             "caller": caller_id,
             "callee": to_number,
-            "callerId": caller_id,
-            "deviceId": self._extract_device_id(caller_id),
-            "webhookUrl": f"{self.webhook_url}/webhook/sipgate/call"
+            "callerId": caller_id
         }
+
+        # Add webhook URL if provided
+        if self.webhook_url:
+            payload["webhookUrl"] = f"{self.webhook_url}/webhook/sipgate/call"
 
         logger.info(f"Making call from {caller_id} to {to_number}")
 
@@ -144,21 +153,59 @@ class SipgateClient:
 
         return cleaned
 
-    def _extract_device_id(self, phone_number: str) -> str:
+    async def _get_device_id(self) -> str:
         """
-        Extract device ID from phone number
-        For now, returns the phone number as-is
-        In production, you'd fetch actual device IDs from Sipgate API
-
-        Args:
-            phone_number: Phone number
+        Get device ID for making calls.
+        Uses stored device_id if available, otherwise auto-detects from account.
 
         Returns:
-            Device ID
+            Device ID (e.g. 'y0')
         """
-        # For simplicity, we'll use the phone number
-        # In production, call GET /account to get actual device IDs
-        return phone_number
+        # If device_id was provided in constructor, use it
+        if self.device_id:
+            return self.device_id
+
+        # Auto-detect device ID from account
+        logger.info("Auto-detecting device ID from Sipgate account...")
+
+        async with httpx.AsyncClient() as client:
+            try:
+                # Get user info to find the sub (user ID like 'w0')
+                user_response = await client.get(
+                    f"{self.base_url}/authorization/userinfo",
+                    headers=self.headers,
+                    timeout=10.0
+                )
+                user_response.raise_for_status()
+                user_id = user_response.json().get("sub", "w0")
+
+                # Get devices for this user
+                devices_response = await client.get(
+                    f"{self.base_url}/{user_id}/devices",
+                    headers=self.headers,
+                    timeout=10.0
+                )
+                devices_response.raise_for_status()
+                devices = devices_response.json().get("items", [])
+
+                if not devices:
+                    logger.error("No devices found in account")
+                    raise ValueError("No devices found. Please configure SIPGATE_DEVICE_ID manually.")
+
+                # Use first available device
+                first_device = devices[0]
+                device_id = first_device.get("id")
+
+                logger.info(f"Auto-detected device ID: {device_id} ({first_device.get('alias')})")
+
+                # Cache it for future calls
+                self.device_id = device_id
+
+                return device_id
+
+            except Exception as e:
+                logger.error(f"Failed to auto-detect device ID: {e}")
+                raise ValueError(f"Could not detect device ID. Please set SIPGATE_DEVICE_ID in .env. Error: {e}")
 
     async def get_account_info(self) -> Dict[str, Any]:
         """
