@@ -85,3 +85,4 @@ Thumbs.db
 # Project specific
 candidates.csv
 recordings/
+.env.sipgate

@@ -14,10 +14,18 @@ class Settings(BaseSettings):
         case_sensitive=False
     )
 
+    # Telephony Provider
+    telephony_provider: str = "twilio"  # "twilio" or "sipgate"
+
     # Twilio Configuration
-    twilio_account_sid: str
-    twilio_auth_token: str
-    twilio_phone_number: str
+    twilio_account_sid: Optional[str] = None
+    twilio_auth_token: Optional[str] = None
+    twilio_phone_number: Optional[str] = None
+
+    # Sipgate Configuration
+    sipgate_email: Optional[str] = None
+    sipgate_password: Optional[str] = None
+    sipgate_phone_number: Optional[str] = None
 
     # AI Provider
     ai_provider: str = "anthropic"  # "anthropic" or "openai"
@@ -58,10 +66,20 @@ class Settings(BaseSettings):
 
     def validate_api_keys(self) -> bool:
         """Validate that required API keys are present"""
+        # Validate AI provider
         if self.ai_provider == "anthropic" and not self.anthropic_api_key:
             raise ValueError("ANTHROPIC_API_KEY is required when AI_PROVIDER is 'anthropic'")
         if self.ai_provider == "openai" and not self.openai_api_key:
             raise ValueError("OPENAI_API_KEY is required when AI_PROVIDER is 'openai'")
+
+        # Validate telephony provider
+        if self.telephony_provider == "twilio":
+            if not all([self.twilio_account_sid, self.twilio_auth_token, self.twilio_phone_number]):
+                raise ValueError("Twilio credentials required when TELEPHONY_PROVIDER is 'twilio'")
+        elif self.telephony_provider == "sipgate":
+            if not all([self.sipgate_email, self.sipgate_password, self.sipgate_phone_number]):
+                raise ValueError("Sipgate credentials required when TELEPHONY_PROVIDER is 'sipgate'")
+
         return True
 
 

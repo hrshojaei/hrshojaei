@@ -12,7 +12,21 @@ import asyncio
 from src.config import settings
 from src.candidate_manager import CandidateManager
 from src.twilio_client import TwilioVoiceClient, TwiMLGenerator
+from src.sipgate_client import SipgateClient, SipgateXMLResponse
 from src.call_handler import call_handler
+
+
+def get_telephony_client():
+    """Factory function to get the appropriate telephony client"""
+    if settings.telephony_provider == "sipgate":
+        return SipgateClient(
+            email=settings.sipgate_email,
+            password=settings.sipgate_password,
+            phone_number=settings.sipgate_phone_number,
+            webhook_url=settings.public_url
+        )
+    else:  # default to twilio
+        return TwilioVoiceClient()
 
 
 # Configure logging
@@ -206,6 +220,7 @@ def start_server():
     """Start the FastAPI server"""
     logger.info(f"Starting server on {settings.server_host}:{settings.server_port}")
     logger.info(f"Public URL: {settings.public_url}")
+    logger.info(f"Telephony Provider: {settings.telephony_provider}")
     logger.info(f"AI Provider: {settings.ai_provider}")
 
     uvicorn.run(
@@ -220,6 +235,7 @@ def start_server():
 def make_test_call(phone: str):
     """Make a test call to a phone number"""
     logger.info(f"Making test call to {phone}")
+    logger.info(f"Using telephony provider: {settings.telephony_provider}")
 
     # Find or create candidate
     manager = CandidateManager()
@@ -235,30 +251,48 @@ def make_test_call(phone: str):
     else:
         candidate_id = candidate.id
 
-    # Make call
-    twilio_client = TwilioVoiceClient()
-
-    # Use ElevenLabs webhook if enabled
-    if settings.use_elevenlabs_conversational:
-        webhook_url = f"{settings.public_url}/webhook/call/start-elevenlabs"
-        logger.info("Using ElevenLabs Conversational AI")
-    else:
-        webhook_url = f"{settings.public_url}/webhook/call/start?candidate_id={candidate_id}"
-        logger.info("Using traditional OpenAI flow")
-
-    status_callback_url = f"{settings.public_url}/webhook/call/status"
-
     try:
-        call_sid = twilio_client.make_call(
-            to_number=phone,
-            webhook_url=webhook_url,
-            status_callback_url=status_callback_url
-        )
-        logger.info(f"✓ Call initiated: {call_sid}")
-        print(f"\n✓ Call initiated successfully!")
-        print(f"Call SID: {call_sid}")
-        print(f"Candidate ID: {candidate_id}")
-        print(f"\nMonitor the call at: https://console.twilio.com/")
+        if settings.telephony_provider == "sipgate":
+            # Sipgate call
+            client = get_telephony_client()
+            result = asyncio.run(client.make_call(to_number=phone))
+
+            if result.get("success"):
+                session_id = result.get("session_id")
+                logger.info(f"✓ Call initiated: {session_id}")
+                print(f"\n✓ Call initiated successfully!")
+                print(f"Session ID: {session_id}")
+                print(f"Candidate ID: {candidate_id}")
+                print(f"From: {result.get('from')}")
+                print(f"To: {result.get('to')}")
+            else:
+                error = result.get("error", "Unknown error")
+                logger.error(f"Failed to make call: {error}")
+                print(f"\n✗ Failed to make call: {error}")
+        else:
+            # Twilio call
+            twilio_client = get_telephony_client()
+
+            # Use ElevenLabs webhook if enabled
+            if settings.use_elevenlabs_conversational:
+                webhook_url = f"{settings.public_url}/webhook/call/start-elevenlabs"
+                logger.info("Using ElevenLabs Conversational AI")
+            else:
+                webhook_url = f"{settings.public_url}/webhook/call/start?candidate_id={candidate_id}"
+                logger.info("Using traditional OpenAI flow")
+
+            status_callback_url = f"{settings.public_url}/webhook/call/status"
+
+            call_sid = twilio_client.make_call(
+                to_number=phone,
+                webhook_url=webhook_url,
+                status_callback_url=status_callback_url
+            )
+            logger.info(f"✓ Call initiated: {call_sid}")
+            print(f"\n✓ Call initiated successfully!")
+            print(f"Call SID: {call_sid}")
+            print(f"Candidate ID: {candidate_id}")
+            print(f"\nMonitor the call at: https://console.twilio.com/")
 
     except Exception as e:
         logger.error(f"Failed to make call: {e}")

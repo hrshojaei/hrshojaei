@@ -1,0 +1,279 @@
+"""
+Sipgate REST API Client
+Handles outbound calls and webhooks for Sipgate telephony
+"""
+import base64
+import httpx
+from typing import Optional, Dict, Any
+from loguru import logger
+
+
+class SipgateClient:
+    """Client for Sipgate REST API v2"""
+
+    def __init__(
+        self,
+        email: str,
+        password: str,
+        phone_number: str,
+        webhook_url: Optional[str] = None
+    ):
+        """
+        Initialize Sipgate client
+
+        Args:
+            email: Sipgate account email
+            password: Sipgate account password
+            phone_number: Your Sipgate phone number (E.164 format, e.g. +4922838755035)
+            webhook_url: Base URL for webhooks (e.g. https://candidateai.de)
+        """
+        self.email = email
+        self.password = password
+        self.phone_number = phone_number
+        self.webhook_url = webhook_url
+        self.base_url = "https://api.sipgate.com/v2"
+
+        # Create Basic Auth header
+        credentials = f"{email}:{password}"
+        encoded = base64.b64encode(credentials.encode()).decode()
+        self.headers = {
+            "Authorization": f"Basic {encoded}",
+            "Content-Type": "application/json"
+        }
+
+        logger.info(f"Sipgate client initialized for {phone_number}")
+
+    async def make_call(
+        self,
+        to_number: str,
+        caller_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Initiate an outbound call
+
+        Args:
+            to_number: Destination phone number (E.164 format)
+            caller_id: Optional caller ID to display
+
+        Returns:
+            Dict with call information including session_id
+        """
+        if not caller_id:
+            caller_id = self.phone_number
+
+        # Normalize phone numbers to E.164
+        to_number = self._normalize_number(to_number)
+        caller_id = self._normalize_number(caller_id)
+
+        payload = {
+            "caller": caller_id,
+            "callee": to_number,
+            "callerId": caller_id,
+            "deviceId": self._extract_device_id(caller_id),
+            "webhookUrl": f"{self.webhook_url}/webhook/sipgate/call"
+        }
+
+        logger.info(f"Making call from {caller_id} to {to_number}")
+
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(
+                    f"{self.base_url}/sessions/calls",
+                    json=payload,
+                    headers=self.headers,
+                    timeout=30.0
+                )
+                response.raise_for_status()
+
+                result = response.json()
+                session_id = result.get("sessionId")
+
+                logger.info(f"Call initiated successfully: {session_id}")
+
+                return {
+                    "success": True,
+                    "session_id": session_id,
+                    "to": to_number,
+                    "from": caller_id
+                }
+
+            except httpx.HTTPStatusError as e:
+                error_msg = f"HTTP {e.response.status_code}: {e.response.text}"
+                logger.error(f"Failed to make call: {error_msg}")
+                return {
+                    "success": False,
+                    "error": error_msg
+                }
+            except Exception as e:
+                logger.error(f"Error making call: {e}")
+                return {
+                    "success": False,
+                    "error": str(e)
+                }
+
+    def _normalize_number(self, number: str) -> str:
+        """
+        Normalize phone number to E.164 format
+
+        Args:
+            number: Phone number in various formats
+
+        Returns:
+            E.164 formatted number (e.g. +4922838755035)
+        """
+        # Remove all non-digit characters except +
+        cleaned = ''.join(c for c in number if c.isdigit() or c == '+')
+
+        # If starts with 0, assume German number
+        if cleaned.startswith('0'):
+            cleaned = '+49' + cleaned[1:]
+
+        # If doesn't start with +, add it
+        if not cleaned.startswith('+'):
+            cleaned = '+' + cleaned
+
+        return cleaned
+
+    def _extract_device_id(self, phone_number: str) -> str:
+        """
+        Extract device ID from phone number
+        For now, returns the phone number as-is
+        In production, you'd fetch actual device IDs from Sipgate API
+
+        Args:
+            phone_number: Phone number
+
+        Returns:
+            Device ID
+        """
+        # For simplicity, we'll use the phone number
+        # In production, call GET /account to get actual device IDs
+        return phone_number
+
+    async def get_account_info(self) -> Dict[str, Any]:
+        """
+        Get account information including balance and device IDs
+
+        Returns:
+            Account information dict
+        """
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(
+                    f"{self.base_url}/account",
+                    headers=self.headers,
+                    timeout=10.0
+                )
+                response.raise_for_status()
+                return response.json()
+
+            except Exception as e:
+                logger.error(f"Error getting account info: {e}")
+                return {"error": str(e)}
+
+    async def get_balance(self) -> Optional[float]:
+        """
+        Get current account balance
+
+        Returns:
+            Balance in EUR or None if error
+        """
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(
+                    f"{self.base_url}/balance",
+                    headers=self.headers,
+                    timeout=10.0
+                )
+                response.raise_for_status()
+                data = response.json()
+                balance = data.get("amount")
+
+                logger.info(f"Current balance: €{balance}")
+                return balance
+
+            except Exception as e:
+                logger.error(f"Error getting balance: {e}")
+                return None
+
+
+class SipgateXMLResponse:
+    """Helper class to generate Sipgate XML responses for webhooks"""
+
+    @staticmethod
+    def dial(number: str) -> str:
+        """
+        Generate XML to dial a number
+
+        Args:
+            number: Phone number to dial
+
+        Returns:
+            Sipgate XML string
+        """
+        return f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Dial>{number}</Dial>
+</Response>"""
+
+    @staticmethod
+    def play(url: str) -> str:
+        """
+        Generate XML to play an audio file
+
+        Args:
+            url: URL of audio file to play
+
+        Returns:
+            Sipgate XML string
+        """
+        return f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Play>{url}</Play>
+</Response>"""
+
+    @staticmethod
+    def gather(action_url: str, timeout: int = 5) -> str:
+        """
+        Generate XML to gather DTMF input
+
+        Args:
+            action_url: URL to POST gathered digits
+            timeout: Timeout in seconds
+
+        Returns:
+            Sipgate XML string
+        """
+        return f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Gather action="{action_url}" timeout="{timeout}" />
+</Response>"""
+
+    @staticmethod
+    def hangup() -> str:
+        """
+        Generate XML to hang up the call
+
+        Returns:
+            Sipgate XML string
+        """
+        return """<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Hangup/>
+</Response>"""
+
+    @staticmethod
+    def redirect(url: str) -> str:
+        """
+        Generate XML to redirect to another webhook
+
+        Args:
+            url: Webhook URL to redirect to
+
+        Returns:
+            Sipgate XML string
+        """
+        return f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Redirect>{url}</Redirect>
+</Response>"""
