@@ -100,6 +100,14 @@ class TwiMLGenerator:
 
         response = VoiceResponse()
 
+        # Play short intro to avoid awkward silence while ElevenLabs initializes
+        # This gives immediate audio feedback to the caller
+        response.say(
+            "Einen Moment bitte.",
+            voice='Polly.Vicki',  # German female voice
+            language='de-DE'
+        )
+
         # Start Media Stream
         connect = Connect()
         stream = Stream(url=stream_url)
