@@ -86,12 +86,18 @@ class ElevenLabsConversationalAI:
 
                 msg_type = data.get("type")
 
+                # DEBUG: Log all message types to see what ElevenLabs sends
+                logger.debug(f"ElevenLabs message type: {msg_type}")
+
                 if msg_type == "audio":
                     # Agent speaking
                     audio_b64 = data.get("audio_event", {}).get("audio_base_64")
                     if audio_b64:
                         audio_bytes = base64.b64decode(audio_b64)
+                        logger.debug(f"Received audio chunk: {len(audio_bytes)} bytes")
                         return audio_bytes
+                    else:
+                        logger.warning(f"Audio message without data: {data}")
 
                 elif msg_type == "interruption":
                     logger.info("User interrupted agent")
