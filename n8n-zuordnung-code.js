@@ -3,7 +3,19 @@
 
 // ========== KONFIGURATION ==========
 const GOOGLE_MAPS_API_KEY = 'AIzaSyDPxA9a8qyRRhIzMVCR4n-vL2xEKqeC6no';
-const MAX_DISTANZ_KM = $node["⚙️ Distanz einstellen"].json["distanz_km"] || 25;
+
+// Distanz aus dem ersten Input-Item lesen (falls vorhanden)
+// Fallback: 25 km
+let MAX_DISTANZ_KM = 25;
+try {
+  const firstItem = $input.first();
+  if (firstItem && firstItem.json && firstItem.json.distanz_km) {
+    MAX_DISTANZ_KM = firstItem.json.distanz_km;
+  }
+} catch (e) {
+  // Fallback zu 25 km wenn keine Distanz gefunden
+  MAX_DISTANZ_KM = 25;
+}
 
 // ========== HILFSFUNKTIONEN ==========
 
