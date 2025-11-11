@@ -1,0 +1,383 @@
+{
+  "name": "Kandidaten-Zuordnung mit Distanz-Auswahl",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "START: Workflow ausführen",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "distanz_param",
+              "name": "distanz",
+              "value": 25,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "name": "⚙️ Distanz festlegen (10-100 km)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [460, 300],
+      "notes": "HIER DISTANZ ÄNDERN: 10, 20, 30, 40, 50, 75, 100 km"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": "b3f1eeab2d1a42f2a9ba9792568bc217",
+        "returnAll": true,
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "key": " Zukünftiger Arbeitgeber",
+              "condition": "is_empty",
+              "returnType": "relation"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "name": "📋 Kandidaten ohne Zuordnung",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [680, 180],
+      "credentials": {
+        "notionApi": {
+          "id": "IHRE_NOTION_CREDENTIAL_ID",
+          "name": "Notion API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": "c6d33fd30f924e6d87fe4cb9fdb2c2aa",
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "d4e5f6a7-b8c9-0123-def1-234567890123",
+      "name": "🏪 Fachgeschäfte laden",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [680, 360],
+      "credentials": {
+        "notionApi": {
+          "id": "IHRE_NOTION_CREDENTIAL_ID",
+          "name": "Notion API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": "29a0974bd6228043850bf887c636d116",
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "e5f6a7b8-c9d0-1234-ef12-345678901234",
+      "name": "👔 Aktuelle Arbeitgeber laden",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [680, 540],
+      "credentials": {
+        "notionApi": {
+          "id": "IHRE_NOTION_CREDENTIAL_ID",
+          "name": "Notion API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "f6a7b8c9-d0e1-2345-f123-456789012345",
+      "name": "🔀 Daten zusammenführen",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [920, 360]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===================================\n// CONFIGURATION\n// ===================================\nconst GOOGLE_MAPS_API_KEY = 'AIzaSyDPxA9a8qyRRhIzMVCR4n-vL2xEKqeC6no';\nconst MAX_DISTANZ_KM = $input.first().json.distanz || 25;\n\n// Cache für Geocoding-Ergebnisse\nconst geocodeCache = {};\n\n// ===================================\n// GEOCODING FUNCTION\n// ===================================\nasync function getCoordinates(address) {\n  if (!address) return null;\n  \n  // Cache prüfen\n  if (geocodeCache[address]) {\n    return geocodeCache[address];\n  }\n  \n  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${GOOGLE_MAPS_API_KEY}`;\n  \n  try {\n    const response = await fetch(url);\n    const data = await response.json();\n    \n    if (data.status === 'OK' && data.results && data.results.length > 0) {\n      const coords = {\n        lat: data.results[0].geometry.location.lat,\n        lng: data.results[0].geometry.location.lng\n      };\n      \n      // Cache speichern\n      geocodeCache[address] = coords;\n      return coords;\n    }\n  } catch (error) {\n    console.error(`Geocoding-Fehler für ${address}:`, error.message);\n  }\n  \n  return null;\n}\n\n// ===================================\n// DISTANCE CALCULATION (Haversine)\n// ===================================\nfunction calculateDistance(coord1, coord2) {\n  const R = 6371; // Erdradius in km\n  \n  const toRad = (degrees) => degrees * (Math.PI / 180);\n  \n  const dLat = toRad(coord2.lat - coord1.lat);\n  const dLon = toRad(coord2.lng - coord1.lng);\n  \n  const a = \n    Math.sin(dLat / 2) * Math.sin(dLat / 2) +\n    Math.cos(toRad(coord1.lat)) * Math.cos(toRad(coord2.lat)) *\n    Math.sin(dLon / 2) * Math.sin(dLon / 2);\n  \n  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));\n  return R * c;\n}\n\n// ===================================\n// MAIN LOGIC\n// ===================================\nconst items = $input.all();\nconst results = [];\n\n// Ersten Input nehmen (merged data)\nconst firstItem = items[0].json;\n\n// Kandidaten extrahieren (vom ersten Notion Node)\nconst kandidaten = [];\nfor (let i = 0; i < items.length; i++) {\n  if (items[i].json.object === 'page' && items[i].json.parent?.database_id === 'b3f1eeab2d1a42f2a9ba9792568bc217') {\n    kandidaten.push(items[i].json);\n  }\n}\n\n// Fachgeschäfte extrahieren\nconst fachgeschaefte = [];\nfor (let i = 0; i < items.length; i++) {\n  if (items[i].json.object === 'page' && items[i].json.parent?.database_id === 'c6d33fd30f924e6d87fe4cb9fdb2c2aa') {\n    fachgeschaefte.push(items[i].json);\n  }\n}\n\n// Arbeitgeber extrahieren\nconst arbeitgeber = [];\nfor (let i = 0; i < items.length; i++) {\n  if (items[i].json.object === 'page' && items[i].json.parent?.database_id === '29a0974bd6228043850bf887c636d116') {\n    arbeitgeber.push(items[i].json);\n  }\n}\n\nconsole.log(`=== START ZUORDNUNG ===\");\nconsole.log(`Maximale Distanz: ${MAX_DISTANZ_KM} km`);\nconsole.log(`Kandidaten: ${kandidaten.length}`);\nconsole.log(`Fachgeschäfte: ${fachgeschaefte.length}`);\nconsole.log(`Arbeitgeber: ${arbeitgeber.length}`);\n\nif (kandidaten.length === 0) {\n  console.log('✓ Keine Kandidaten ohne Zuordnung gefunden!');\n  return [{ json: { message: 'Keine Kandidaten zu bearbeiten', count: 0 } }];\n}\n\n// Jeden Kandidaten verarbeiten\nfor (const kandidat of kandidaten) {\n  const kandidatName = kandidat.properties?.Name?.title?.[0]?.plain_text || 'Unbekannt';\n  const kandidatAdresse = kandidat.properties?.Wohnadresse?.rich_text?.[0]?.plain_text;\n  \n  if (!kandidatAdresse) {\n    console.log(`✗ ${kandidatName}: Keine Adresse`);\n    continue;\n  }\n  \n  // Koordinaten des Kandidaten holen\n  const kandidatCoords = await getCoordinates(kandidatAdresse);\n  \n  if (!kandidatCoords) {\n    console.log(`✗ ${kandidatName}: Adresse nicht gefunden`);\n    continue;\n  }\n  \n  // Nächstes Fachgeschäft finden\n  let nearestShop = null;\n  let shortestDistance = Infinity;\n  \n  for (const shop of fachgeschaefte) {\n    const shopAdresse = shop.properties?.['Adresse ']?.rich_text?.[0]?.plain_text;\n    \n    if (!shopAdresse) continue;\n    \n    const shopCoords = await getCoordinates(shopAdresse);\n    \n    if (!shopCoords) continue;\n    \n    const distance = calculateDistance(kandidatCoords, shopCoords);\n    \n    if (distance <= MAX_DISTANZ_KM && distance < shortestDistance) {\n      nearestShop = {\n        id: shop.id,\n        name: shop.properties?.Name?.title?.[0]?.plain_text || 'Unbekannt',\n        distance: distance\n      };\n      shortestDistance = distance;\n    }\n  }\n  \n  if (!nearestShop) {\n    console.log(`✗ ${kandidatName}: Kein Geschäft innerhalb ${MAX_DISTANZ_KM} km`);\n    continue;\n  }\n  \n  // Distanz zum aktuellen Arbeitgeber berechnen\n  let distanceToCurrentEmployer = null;\n  \n  const currentEmployerRelation = kandidat.properties?.['Aktueller Arbeitgeber']?.relation;\n  \n  if (currentEmployerRelation && currentEmployerRelation.length > 0) {\n    const employerId = currentEmployerRelation[0].id;\n    const employer = arbeitgeber.find(a => a.id === employerId);\n    \n    if (employer) {\n      const employerAdresse = employer.properties?.['Adresse ']?.rich_text?.[0]?.plain_text;\n      \n      if (employerAdresse) {\n        const employerCoords = await getCoordinates(employerAdresse);\n        \n        if (employerCoords) {\n          distanceToCurrentEmployer = calculateDistance(kandidatCoords, employerCoords);\n        }\n      }\n    }\n  }\n  \n  // Ergebnis speichern\n  results.push({\n    json: {\n      kandidat_id: kandidat.id,\n      kandidat_name: kandidatName,\n      shop_id: nearestShop.id,\n      shop_name: nearestShop.name,\n      distanz_shop: Math.round(nearestShop.distance * 10) / 10,\n      distanz_aktueller_ag: distanceToCurrentEmployer ? Math.round(distanceToCurrentEmployer * 10) / 10 : null\n    }\n  });\n  \n  const employerInfo = distanceToCurrentEmployer \n    ? ` | Akt. AG: ${distanceToCurrentEmployer.toFixed(1)} km` \n    : '';\n  \n  console.log(`✓ ${kandidatName} → ${nearestShop.name} (${nearestShop.distance.toFixed(1)} km)${employerInfo}`);\n}\n\nconsole.log(`=== FERTIG! ${results.length} Kandidaten zugeordnet ===`);\n\nif (results.length === 0) {\n  return [{ json: { message: 'Keine Zuordnungen möglich', count: 0 } }];\n}\n\nreturn results;"
+      },
+      "id": "a7b8c9d0-e1f2-3456-a123-567890123456",
+      "name": "🎯 Zuordnung berechnen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1140, 360],
+      "notesInFlow": true,
+      "notes": "Google Maps Geocoding + Distanzberechnung"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "b8c9d0e1-f2a3-4567-b123-678901234567",
+      "name": "🔄 Loop über Kandidaten",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1360, 360]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check_id",
+              "leftValue": "={{ $json.kandidat_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c9d0e1f2-a3b4-5678-c123-789012345678",
+      "name": "✅ Hat Zuordnung?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1580, 360]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": "={{ $json.kandidat_id }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": " Zukünftiger Arbeitgeber",
+              "relationsUi": {
+                "relationValues": [
+                  {
+                    "id": "={{ $json.shop_id }}"
+                  }
+                ]
+              }
+            },
+            {
+              "key": "Distanzberechnung Wohnort zu zukünftiger Arbeitgeber",
+              "numberValue": "={{ $json.distanz_shop }}"
+            },
+            {
+              "key": "Distanz Aktueller Arbeitgeber",
+              "numberValue": "={{ $json.distanz_aktueller_ag || 0 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d0e1f2a3-b4c5-6789-d123-890123456789",
+      "name": "💾 Kandidat in Notion updaten",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [1800, 260],
+      "credentials": {
+        "notionApi": {
+          "id": "IHRE_NOTION_CREDENTIAL_ID",
+          "name": "Notion API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 100,
+        "unit": "milliseconds"
+      },
+      "id": "e1f2a3b4-c5d6-7890-e123-901234567890",
+      "name": "⏱️ Warten (Rate Limit)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [2020, 260],
+      "webhookId": "waiting-webhook"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "f2a3b4c5-d6e7-8901-f123-012345678901",
+      "name": "📊 Zusammenfassung",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [1800, 540]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "START: Workflow ausführen": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Distanz festlegen (10-100 km)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Distanz festlegen (10-100 km)": {
+      "main": [
+        [
+          {
+            "node": "📋 Kandidaten ohne Zuordnung",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🏪 Fachgeschäfte laden",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "👔 Aktuelle Arbeitgeber laden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Kandidaten ohne Zuordnung": {
+      "main": [
+        [
+          {
+            "node": "🔀 Daten zusammenführen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏪 Fachgeschäfte laden": {
+      "main": [
+        [
+          {
+            "node": "🔀 Daten zusammenführen",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "👔 Aktuelle Arbeitgeber laden": {
+      "main": [
+        [
+          {
+            "node": "🔀 Daten zusammenführen",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "🔀 Daten zusammenführen": {
+      "main": [
+        [
+          {
+            "node": "🎯 Zuordnung berechnen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎯 Zuordnung berechnen": {
+      "main": [
+        [
+          {
+            "node": "🔄 Loop über Kandidaten",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 Loop über Kandidaten": {
+      "main": [
+        [
+          {
+            "node": "✅ Hat Zuordnung?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Hat Zuordnung?": {
+      "main": [
+        [
+          {
+            "node": "💾 Kandidat in Notion updaten",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📊 Zusammenfassung",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💾 Kandidat in Notion updaten": {
+      "main": [
+        [
+          {
+            "node": "⏱️ Warten (Rate Limit)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏱️ Warten (Rate Limit)": {
+      "main": [
+        [
+          {
+            "node": "🔄 Loop über Kandidaten",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "instanceId": "your-instance-id"
+  },
+  "id": "kandidaten-zuordnung-workflow",
+  "tags": []
+}
