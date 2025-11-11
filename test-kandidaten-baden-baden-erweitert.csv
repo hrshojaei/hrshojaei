@@ -1,0 +1,21 @@
+Name,Wohnadresse,Status,Handynummer,E-Mail,Aktuelle Position,Abschlussjahr,Gehalt Aktuell,Geburtsdatum,Kommentar,Führerschein,Erwartete Distanz
+Max Mustermann,Sophienstraße 12 76530 Baden-Baden,Aktiv,+49 151 12345678,max.mustermann@example.de,Hörgeräteakustiker,2018,42000,15.03.1995,Direkt in Baden-Baden,Ja,0-2 km
+Anna Schmidt,Lichtentaler Straße 45 76530 Baden-Baden,Aktiv,+49 152 23456789,anna.schmidt@example.de,Filialleitung,2015,55000,22.07.1992,Direkt in Baden-Baden,Ja,0-2 km
+Peter Müller,Hauptstraße 89 76437 Rastatt,Aktiv,+49 160 34567890,peter.mueller@example.de,Hörgeräteakustiker-Meister,2012,52000,10.11.1989,Rastatt - gute Anbindung,Ja,10 km
+Lisa Weber,Kaiserstraße 23 76437 Rastatt,Interessiert,+49 170 45678901,lisa.weber@example.de,Hörgeräteakustikerin,2020,38000,05.01.1997,Rastatt - Pendeln OK,Ja,10 km
+Thomas Becker,Hauptstraße 67 77815 Bühl,Aktiv,+49 175 56789012,thomas.becker@example.de,Hörgeräteakustiker,2016,45000,18.09.1993,Bühl - Umzug möglich,Ja,15-20 km
+Sarah Klein,Eisenbahnstraße 34 77815 Bühl,Passiv,+49 176 67890123,sarah.klein@example.de,Hörgeräteakustikerin,2019,41000,28.04.1996,Bühl - nur gutes Angebot,Nein,15-20 km
+Michael Fischer,Marktplatz 5 77855 Achern,Aktiv,+49 177 78901234,michael.fischer@example.de,Hörgeräteakustiker-Geselle,2021,36000,12.12.1998,Achern - motiviert,Ja,25 km
+Julia Hoffmann,Kirchstraße 18 77855 Achern,Interessiert,+49 178 89012345,julia.hoffmann@example.de,Hörgeräteakustikerin,2017,43000,30.06.1994,Achern - Pendeln max 30km,Ja,25 km
+Daniel Wagner,Lange Straße 56 77652 Offenburg,Aktiv,+49 151 90123456,daniel.wagner@example.de,Hörgeräteakustiker-Meister,2010,58000,14.02.1987,Offenburg - Erfahren,Ja,35 km
+Sophie Schulz,Hauptstraße 23 77652 Offenburg,Interessiert,+49 152 01234567,sophie.schulz@example.de,Hörgeräteakustikerin,2022,35000,08.08.1999,Offenburg - Berufsanfänger,Ja,35 km
+Martin Bauer,Pforzheimer Straße 45 76275 Ettlingen,Aktiv,+49 160 12345670,martin.bauer@example.de,Filialleiter,2013,60000,25.05.1990,Ettlingen - Führungskraft,Ja,30 km
+Katharina Richter,Wiesenstraße 12 76275 Ettlingen,Passiv,+49 170 23456781,katharina.richter@example.de,Hörgeräteakustikerin,2018,40000,17.10.1995,Ettlingen - Teilzeit,Nein,30 km
+Andreas Meyer,Marktplatz 8 76316 Malsch,Aktiv,+49 175 34567892,andreas.meyer@example.de,Hörgeräteakustiker,2019,39000,03.03.1996,Malsch - flexibel,Ja,35 km
+Christina Wolf,Rheinstraße 89 76327 Pfinztal,Interessiert,+49 176 45678903,christina.wolf@example.de,Hörgeräteakustiker-Meisterin,2014,54000,21.11.1991,Pfinztal - Meisterin,Ja,40 km
+Jan Zimmermann,Kaiserstraße 123 76131 Karlsruhe,Aktiv,+49 177 56789014,jan.zimmermann@example.de,Hörgeräteakustiker,2020,37000,19.07.1997,Karlsruhe - Großstadt,Ja,45 km
+Laura Schneider,Durlacher Allee 67 76131 Karlsruhe,Aktiv,+49 178 67890125,laura.schneider@example.de,Hörgeräteakustikerin,2016,44000,06.02.1993,Karlsruhe - sucht kleiner Stadt,Ja,45 km
+Tobias Koch,Lange Straße 34 72250 Freudenstadt,Interessiert,+49 151 78901236,tobias.koch@example.de,Hörgeräteakustiker-Geselle,2021,35000,11.09.1998,Freudenstadt - Schwarzwald,Ja,55 km
+Maria Lang,Marktplatz 12 72250 Freudenstadt,Aktiv,+49 152 89012347,maria.lang@example.de,Hörgeräteakustikerin,2015,46000,27.01.1992,Freudenstadt - gerne Baden-Baden,Ja,55 km
+Felix Krause,Talstraße 45 76571 Gaggenau,Passiv,+49 160 90123458,felix.krause@example.de,Hörgeräteakustiker-Meister,2011,56000,04.05.1988,Gaggenau - sehr erfahren,Ja,18 km
+Nina Lehmann,Murgtalstraße 23 76571 Gaggenau,Aktiv,+49 170 01234569,nina.lehmann@example.de,Hörgeräteakustikerin,2019,40000,13.12.1996,Gaggenau - engagiert,Ja,18 km
