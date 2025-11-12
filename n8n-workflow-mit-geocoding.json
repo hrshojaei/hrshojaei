@@ -77,6 +77,30 @@
     },
     {
       "parameters": {
+        "resource": "databasePage",
+        "operation": "getMany",
+        "databaseId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "29a0974bd6228043850bf887c636d116"
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "11",
+      "name": "👔 Aktuelle Arbeitgeber laden",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [680, 600],
+      "credentials": {
+        "notionApi": {
+          "id": "1",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
         "mode": "combine",
         "combinationMode": "multiplex",
         "options": {}
@@ -89,7 +113,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Schritt 1: Adressen sammeln und Typ markieren\nconst items = $input.all();\nconst addressItems = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Kandidaten\n  if (data.property_wohnadresse && data.property_wohnadresse.trim() !== '') {\n    addressItems.push({\n      json: {\n        id: data.id,\n        name: data.property_name,\n        address: data.property_wohnadresse,\n        type: 'kandidat'\n      }\n    });\n  }\n  // Fachgeschäfte\n  else if (data.property_adresse && data.property_adresse.trim() !== '') {\n    addressItems.push({\n      json: {\n        id: data.id,\n        name: data.property_name,\n        address: data.property_adresse,\n        type: 'fachgeschaeft'\n      }\n    });\n  }\n}\n\nreturn addressItems;"
+        "jsCode": "// Schritt 1: Adressen sammeln und Typ markieren\nconst items = $input.all();\nconst addressItems = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Kandidaten\n  if (data.property_wohnadresse && data.property_wohnadresse.trim() !== '') {\n    addressItems.push({\n      json: {\n        id: data.id,\n        name: data.property_name,\n        address: data.property_wohnadresse,\n        type: 'kandidat'\n      }\n    });\n  }\n  // Fachgeschäfte\n  else if (data.property_adresse && data.property_adresse.trim() !== '') {\n    addressItems.push({\n      json: {\n        id: data.id,\n        name: data.property_name,\n        address: data.property_adresse,\n        type: 'fachgeschaeft'\n      }\n    });\n  }\n  // Arbeitgeber (falls sie auch eine Adresse haben)\n  else if (data.property_aktueller_arbeitgeber) {\n    // Arbeitgeber haben möglicherweise keine Adresse zum Geocodieren\n    // Fügen Sie sie hinzu wenn nötig\n  }\n}\n\nreturn addressItems;"
       },
       "id": "6",
       "name": "📍 Adressen extrahieren",
@@ -164,6 +188,11 @@
             "node": "🏪 Fachgeschäfte laden",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "👔 Aktuelle Arbeitgeber laden",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -186,6 +215,17 @@
             "node": "🔀 Kombination",
             "type": "main",
             "index": 1
+          }
+        ]
+      ]
+    },
+    "👔 Aktuelle Arbeitgeber laden": {
+      "main": [
+        [
+          {
+            "node": "🔀 Kombination",
+            "type": "main",
+            "index": 2
           }
         ]
       ]
