@@ -207,46 +207,10 @@
       "parameters": {
         "method": "POST",
         "url": "={{ $env.CALLING_API_URL }}/api/n8n/trigger-call",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "kandidat_id",
-              "value": "={{ $json.kandidat_id }}"
-            },
-            {
-              "name": "kandidat_name",
-              "value": "={{ $json.kandidat_name }}"
-            },
-            {
-              "name": "phone",
-              "value": "={{ $json.kandidat_phone }}"
-            },
-            {
-              "name": "fachgeschaefte",
-              "value": "={{ $json.fachgeschaefte_namen }}"
-            },
-            {
-              "name": "distanzen",
-              "value": "={{ $json.distanzen_km }}"
-            },
-            {
-              "name": "naechstes_geschaeft",
-              "value": "={{ $json.naechstes_geschaeft }}"
-            }
-          ]
-        },
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  kandidat_id: $json.kandidat_id,\n  kandidat_name: $json.kandidat_name,\n  phone: $json.kandidat_phone,\n  fachgeschaefte: $json.fachgeschaefte_namen,\n  distanzen: $json.distanzen_km,\n  naechstes_geschaeft: $json.naechstes_geschaeft\n}) }}",
         "options": {}
       },
       "id": "new-call-trigger-node",
