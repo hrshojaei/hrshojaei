@@ -176,6 +176,85 @@ async def get_statistics():
     return stats
 
 
+# n8n Integration Endpoints
+@app.post("/api/n8n/trigger-call")
+async def n8n_trigger_call(
+    kandidat_id: str,
+    kandidat_name: str,
+    phone: str,
+    fachgeschaefte: list,
+    distanzen: list,
+    naechstes_geschaeft: str
+):
+    """
+    Endpoint für n8n um automatisch Calls zu triggern
+    Wird nach der Kandidaten-Zuordnung aufgerufen
+    """
+    logger.info(f"n8n Call-Trigger: {kandidat_name} ({phone}) → {naechstes_geschaeft}")
+
+    try:
+        # Kandidat in DB finden oder erstellen
+        manager = CandidateManager()
+        candidate = manager.get_candidate(phone=phone)
+
+        if not candidate:
+            # Neuen Kandidaten anlegen
+            notes = f"Nächstes Fachgeschäft: {naechstes_geschaeft} ({distanzen[0]} km)\n"
+            notes += f"Weitere Geschäfte in der Nähe: {', '.join(fachgeschaefte[1:3])}"
+
+            candidate_id_db = manager.add_candidate(
+                name=kandidat_name,
+                phone=phone,
+                notes=notes
+            )
+        else:
+            candidate_id_db = candidate.id
+
+        # Call initiieren
+        telephony_client = get_telephony_client()
+
+        if settings.telephony_provider == "sipgate":
+            result = await telephony_client.make_call(to_number=phone)
+
+            return {
+                "success": result.get("success", False),
+                "kandidat_id": kandidat_id,
+                "candidate_id_db": candidate_id_db,
+                "session_id": result.get("session_id"),
+                "message": f"Call zu {kandidat_name} getriggert"
+            }
+        else:
+            # Twilio
+            if settings.use_elevenlabs_conversational:
+                webhook_url = f"{settings.public_url}/webhook/call/start-elevenlabs"
+            else:
+                webhook_url = f"{settings.public_url}/webhook/call/start?candidate_id={candidate_id_db}"
+
+            status_callback_url = f"{settings.public_url}/webhook/call/status"
+
+            call_sid = telephony_client.make_call(
+                to_number=phone,
+                webhook_url=webhook_url,
+                status_callback_url=status_callback_url
+            )
+
+            return {
+                "success": True,
+                "kandidat_id": kandidat_id,
+                "candidate_id_db": candidate_id_db,
+                "call_sid": call_sid,
+                "message": f"Call zu {kandidat_name} getriggert"
+            }
+
+    except Exception as e:
+        logger.error(f"Fehler beim n8n Call-Trigger: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "message": f"Call zu {kandidat_name} fehlgeschlagen"
+        }
+
+
 # ElevenLabs Conversational AI Endpoints
 @app.websocket("/ws/media-stream/{call_sid}")
 async def websocket_media_stream(websocket: WebSocket, call_sid: str):
