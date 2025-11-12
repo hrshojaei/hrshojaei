@@ -206,7 +206,11 @@
       "parameters": {
         "resource": "databasePage",
         "operation": "update",
-        "pageId": "={{ $json.kandidat_id }}",
+        "pageId": {
+          "__rl": true,
+          "value": "={{ $json.kandidat_id }}",
+          "mode": "id"
+        },
         "propertiesUi": {
           "propertyValues": [
             {
