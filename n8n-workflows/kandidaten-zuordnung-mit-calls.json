@@ -123,8 +123,7 @@
     },
     {
       "parameters": {
-        "mode": "combine",
-        "combinationMode": "multiplex",
+        "mode": "append",
         "options": {}
       },
       "id": "82ad63fe-9685-4bac-9372-7fe6ec47af1b",
