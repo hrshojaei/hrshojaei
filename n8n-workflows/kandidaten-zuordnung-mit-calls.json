@@ -204,6 +204,47 @@
     },
     {
       "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": "={{ $json.kandidat_id }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Zukünftiger Arbeitgeber",
+              "relation": "={{ $json.fachgeschaefte_ids }}"
+            },
+            {
+              "key": "Kommentar",
+              "richTextValues": {
+                "richText": [
+                  {
+                    "textType": "text",
+                    "text": "={{ 'Zugeordnete Geschäfte (10-100 km):\\n' + $json.fachgeschaefte_namen.map((name, i) => `${i+1}. ${name}: ${$json.distanzen_km[i]} km`).join('\\n') }}"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "update-kandidat-notion",
+      "name": "✍️ Kandidaten in Notion aktualisieren",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        64
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "0XxuLBeEBkLiPVOR",
+          "name": "Notion Kandidaten"
+        }
+      }
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "={{ $env.CALLING_API_URL }}/api/n8n/trigger-call",
         "sendBody": true,
@@ -217,7 +258,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        1056,
+        1280,
         64
       ]
     }
@@ -344,6 +385,17 @@
       ]
     },
     "🎯 Zuordnung berechnen (10-100 km)": {
+      "main": [
+        [
+          {
+            "node": "✍️ Kandidaten in Notion aktualisieren",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✍️ Kandidaten in Notion aktualisieren": {
       "main": [
         [
           {
