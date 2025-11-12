@@ -1,0 +1,250 @@
+{
+  "name": "Kandidaten-Zuordnung mit Geocoding",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1",
+      "name": "Manueller Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "distanz_km",
+              "value": 25
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2",
+      "name": "⚙️ Distanz einstellen",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getMany",
+        "databaseId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "b3f1eeab2d1a42f2a9ba9792568bc217"
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "3",
+      "name": "📋 Kandidaten laden",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [680, 200],
+      "credentials": {
+        "notionApi": {
+          "id": "1",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getMany",
+        "databaseId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "c6d33fd30f924e6d87fe4cb9fdb2c2aa"
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "id": "4",
+      "name": "🏪 Fachgeschäfte laden",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [680, 400],
+      "credentials": {
+        "notionApi": {
+          "id": "1",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "id": "5",
+      "name": "🔀 Kombination",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Schritt 1: Adressen sammeln und Typ markieren\nconst items = $input.all();\nconst addressItems = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Kandidaten\n  if (data.property_wohnadresse && data.property_wohnadresse.trim() !== '') {\n    addressItems.push({\n      json: {\n        id: data.id,\n        name: data.property_name,\n        address: data.property_wohnadresse,\n        type: 'kandidat'\n      }\n    });\n  }\n  // Fachgeschäfte\n  else if (data.property_adresse && data.property_adresse.trim() !== '') {\n    addressItems.push({\n      json: {\n        id: data.id,\n        name: data.property_name,\n        address: data.property_adresse,\n        type: 'fachgeschaeft'\n      }\n    });\n  }\n}\n\nreturn addressItems;"
+      },
+      "id": "6",
+      "name": "📍 Adressen extrahieren",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://maps.googleapis.com/maps/api/geocode/json?address={{ encodeURIComponent($json.address) }}&key=AIzaSyDPxA9a8qyRRhIzMVCR4n-vL2xEKqeC6no",
+        "options": {}
+      },
+      "id": "7",
+      "name": "🌍 Google Geocoding API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Koordinaten aus API-Response extrahieren\nconst item = $input.first();\nconst response = item.json;\n\nif (response.status === 'OK' && response.results && response.results.length > 0) {\n  const location = response.results[0].geometry.location;\n  \n  return [{\n    json: {\n      id: $('📍 Adressen extrahieren').item.json.id,\n      name: $('📍 Adressen extrahieren').item.json.name,\n      address: $('📍 Adressen extrahieren').item.json.address,\n      type: $('📍 Adressen extrahieren').item.json.type,\n      lat: location.lat,\n      lng: location.lng,\n      geocoded: true\n    }\n  }];\n} else {\n  return [{\n    json: {\n      id: $('📍 Adressen extrahieren').item.json.id,\n      name: $('📍 Adressen extrahieren').item.json.name,\n      address: $('📍 Adressen extrahieren').item.json.address,\n      type: $('📍 Adressen extrahieren').item.json.type,\n      geocoded: false\n    }\n  }];\n}"
+      },
+      "id": "8",
+      "name": "📊 Koordinaten verarbeiten",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "9",
+      "name": "🔗 Alle Koordinaten sammeln",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Alle geocodierten Items sammeln und Zuordnung berechnen\nconst allItems = $input.first().json.data;\nconst distanzKm = 25;\n\n// Kandidaten und Fachgeschäfte trennen\nconst kandidaten = allItems.filter(item => item.type === 'kandidat' && item.geocoded);\nconst fachgeschaefte = allItems.filter(item => item.type === 'fachgeschaeft' && item.geocoded);\n\nconsole.log(`Kandidaten mit Koordinaten: ${kandidaten.length}`);\nconsole.log(`Fachgeschäfte mit Koordinaten: ${fachgeschaefte.length}`);\n\nif (kandidaten.length === 0 || fachgeschaefte.length === 0) {\n  return [{\n    json: {\n      error: 'Keine gültigen Kandidaten oder Fachgeschäfte gefunden',\n      kandidaten_count: kandidaten.length,\n      fachgeschaefte_count: fachgeschaefte.length\n    }\n  }];\n}\n\n// Haversine-Formel für Distanzberechnung\nfunction calculateDistance(lat1, lon1, lat2, lon2) {\n  const R = 6371;\n  const dLat = (lat2 - lat1) * Math.PI / 180;\n  const dLon = (lon2 - lon1) * Math.PI / 180;\n  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +\n            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *\n            Math.sin(dLon/2) * Math.sin(dLon/2);\n  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));\n  return R * c;\n}\n\n// Zuordnungen berechnen\nconst ergebnisse = [];\n\nfor (const kandidat of kandidaten) {\n  const naheGeschafte = [];\n  \n  for (const geschaeft of fachgeschaefte) {\n    const distanz = calculateDistance(\n      kandidat.lat,\n      kandidat.lng,\n      geschaeft.lat,\n      geschaeft.lng\n    );\n    \n    if (distanz <= distanzKm) {\n      naheGeschafte.push({\n        id: geschaeft.id,\n        name: geschaeft.name,\n        distanz: Math.round(distanz * 10) / 10\n      });\n    }\n  }\n  \n  if (naheGeschafte.length > 0) {\n    ergebnisse.push({\n      json: {\n        kandidat_id: kandidat.id,\n        kandidat_name: kandidat.name,\n        fachgeschaefte_ids: naheGeschafte.map(g => g.id),\n        fachgeschaefte_namen: naheGeschafte.map(g => g.name),\n        distanzen_km: naheGeschafte.map(g => g.distanz),\n        anzahl: naheGeschafte.length\n      }\n    });\n  }\n}\n\nconsole.log(`${ergebnisse.length} Kandidaten wurden zugeordnet`);\n\nif (ergebnisse.length === 0) {\n  return [{\n    json: {\n      info: 'Keine Kandidaten innerhalb der Distanz gefunden',\n      distanz_km: distanzKm\n    }\n  }];\n}\n\nreturn ergebnisse;"
+      },
+      "id": "10",
+      "name": "🎯 Zuordnung berechnen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 300]
+    }
+  ],
+  "connections": {
+    "Manueller Start": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Distanz einstellen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Distanz einstellen": {
+      "main": [
+        [
+          {
+            "node": "📋 Kandidaten laden",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🏪 Fachgeschäfte laden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Kandidaten laden": {
+      "main": [
+        [
+          {
+            "node": "🔀 Kombination",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏪 Fachgeschäfte laden": {
+      "main": [
+        [
+          {
+            "node": "🔀 Kombination",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🔀 Kombination": {
+      "main": [
+        [
+          {
+            "node": "📍 Adressen extrahieren",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📍 Adressen extrahieren": {
+      "main": [
+        [
+          {
+            "node": "🌍 Google Geocoding API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🌍 Google Geocoding API": {
+      "main": [
+        [
+          {
+            "node": "📊 Koordinaten verarbeiten",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Koordinaten verarbeiten": {
+      "main": [
+        [
+          {
+            "node": "🔗 Alle Koordinaten sammeln",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔗 Alle Koordinaten sammeln": {
+      "main": [
+        [
+          {
+            "node": "🎯 Zuordnung berechnen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {}
+}
