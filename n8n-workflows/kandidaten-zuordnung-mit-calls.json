@@ -204,40 +204,29 @@
     },
     {
       "parameters": {
-        "resource": "databasePage",
-        "operation": "update",
-        "pageId": {
-          "__rl": true,
-          "value": "={{ $json.kandidat_id }}",
-          "mode": "id"
-        },
-        "propertiesUi": {
-          "propertyValues": [
+        "method": "PATCH",
+        "url": "=https://api.notion.com/v1/pages/{{ $json.kandidat_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
             {
-              "key": "Zukünftiger Arbeitgeber",
-              "relationsUi": {
-                "relationValue": "={{ $json.fachgeschaefte_ids.map(id => ({ id })) }}"
-              }
-            },
-            {
-              "key": "Kommentar",
-              "richTextValues": {
-                "richText": [
-                  {
-                    "textType": "text",
-                    "text": "={{ 'Zugeordnete Geschäfte (10-100 km):\\n' + $json.fachgeschaefte_namen.map((name, i) => `${i+1}. ${name}: ${$json.distanzen_km[i]} km`).join('\\n') }}"
-                  }
-                ]
-              }
+              "name": "Notion-Version",
+              "value": "2022-06-28"
             }
           ]
         },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  properties: {\n    'Zukünftiger Arbeitgeber': {\n      relation: $json.fachgeschaefte_ids.map(id => ({ id }))\n    },\n    'Kommentar': {\n      rich_text: [\n        {\n          type: 'text',\n          text: {\n            content: 'Zugeordnete Geschäfte (10-100 km):\\n' + $json.fachgeschaefte_namen.map((name, i) => `${i+1}. ${name}: ${$json.distanzen_km[i]} km`).join('\\n')\n          }\n        }\n      ]\n    }\n  }\n}) }}",
         "options": {}
       },
       "id": "update-kandidat-notion",
       "name": "✍️ Kandidaten in Notion aktualisieren",
-      "type": "n8n-nodes-base.notion",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
       "position": [
         1056,
         64
