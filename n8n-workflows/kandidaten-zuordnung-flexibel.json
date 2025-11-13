@@ -168,6 +168,16 @@
     },
     {
       "parameters": {
+        "jsCode": "// Notion Payload vorbereiten\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Kommentar-Text erstellen\n  const kommentarLines = data.fachgeschaefte_namen.map((name, i) => \n    `${i+1}. ${name}: ${data.distanzen_km[i]} km`\n  );\n  const kommentarText = 'Zugeordnete Geschäfte:\\n' + kommentarLines.join('\\n');\n  \n  // Notion Payload erstellen\n  const notionPayload = {\n    properties: {\n      'zukünftiger Arbeitgeber': {\n        relation: data.fachgeschaefte_ids.map(id => ({ id }))\n      },\n      'Distanz Wohnort zukünftiger Arbeitgeber': {\n        number: data.naechste_distanz_km\n      },\n      'Kommentar': {\n        rich_text: [{\n          type: 'text',\n          text: {\n            content: kommentarText\n          }\n        }]\n      }\n    }\n  };\n  \n  results.push({\n    json: {\n      kandidat_id: data.kandidat_id,\n      notion_payload: JSON.stringify(notionPayload)\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "prepare-payload",
+      "name": "📦 Notion Payload vorbereiten",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 64]
+    },
+    {
+      "parameters": {
         "method": "PATCH",
         "url": "=https://api.notion.com/v1/pages/{{ $json.kandidat_id }}",
         "authentication": "predefinedCredentialType",
@@ -181,7 +191,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ \n  const kommentarText = 'Zugeordnete Geschäfte:\\\\n' + $json.fachgeschaefte_namen.map((name, i) => (i+1) + '. ' + name + ': ' + $json.distanzen_km[i] + ' km').join('\\\\n');\n  \n  return JSON.stringify({\n    properties: {\n      'zukünftiger Arbeitgeber': {\n        relation: $json.fachgeschaefte_ids.map(id => ({ id }))\n      },\n      'Distanz Wohnort zukünftiger Arbeitgeber': {\n        number: $json.naechste_distanz_km\n      },\n      'Kommentar': {\n        rich_text: [{\n          type: 'text',\n          text: {\n            content: kommentarText\n          }\n        }]\n      }\n    }\n  });\n}}",
+        "jsonBody": "={{ $json.notion_payload }}",
         "options": {}
       },
       "id": "update-notion",
@@ -233,6 +243,9 @@
       "main": [[{ "node": "🎯 Zuordnung berechnen", "type": "main", "index": 0 }]]
     },
     "🎯 Zuordnung berechnen": {
+      "main": [[{ "node": "📦 Notion Payload vorbereiten", "type": "main", "index": 0 }]]
+    },
+    "📦 Notion Payload vorbereiten": {
       "main": [[{ "node": "✍️ Notion aktualisieren", "type": "main", "index": 0 }]]
     }
   },
