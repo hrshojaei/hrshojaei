@@ -215,7 +215,9 @@
           "propertyValues": [
             {
               "key": "Zukünftiger Arbeitgeber",
-              "relation": "={{ $json.fachgeschaefte_ids }}"
+              "relationsUi": {
+                "relationValue": "={{ $json.fachgeschaefte_ids.map(id => ({ id })) }}"
+              }
             },
             {
               "key": "Kommentar",
