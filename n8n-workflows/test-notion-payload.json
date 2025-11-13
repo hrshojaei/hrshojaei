@@ -1,0 +1,42 @@
+{
+  "name": "TEST: Was wird an Notion gesendet",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simuliere Daten vom Zuordnung-Node\nreturn [{\n  json: {\n    kandidat_id: 'test-id-123',\n    kandidat_name: 'Max Mustermann',\n    kandidat_phone: '+49123456789',\n    fachgeschaefte_ids: ['id1', 'id2', 'id3'],\n    fachgeschaefte_namen: ['Laden A', 'Laden B', 'Laden C'],\n    distanzen_km: [15.5, 23.8, 45.2],\n    anzahl: 3,\n    naechstes_geschaeft: 'Laden A',\n    naechste_distanz_km: 15.5\n  }\n}];"
+      },
+      "id": "simulate-data",
+      "name": "Daten simulieren",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Genau der Code aus dem Update-Node\nconst payload = JSON.stringify({\n  properties: {\n    'zukünftiger Arbeitgeber': {\n      relation: $json.fachgeschaefte_ids.map(id => ({ id }))\n    },\n    'Kommentar': {\n      rich_text: [\n        {\n          type: 'text',\n          text: {\n            content: 'Zugeordnete Geschäfte (10-100 km):\\n' + $json.fachgeschaefte_namen.map((name, i) => `${i+1}. ${name}: ${$json.distanzen_km[i]} km`).join('\\n')\n          }\n        }\n      ]\n    }\n  }\n});\n\nreturn [{ json: { payload: JSON.parse(payload) } }];"
+      },
+      "id": "build-payload",
+      "name": "Notion Payload bauen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [[{"node": "Daten simulieren", "type": "main", "index": 0}]]
+    },
+    "Daten simulieren": {
+      "main": [[{"node": "Notion Payload bauen", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {}
+}
