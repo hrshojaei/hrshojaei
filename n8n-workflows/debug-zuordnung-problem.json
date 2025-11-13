@@ -1,0 +1,100 @@
+{
+  "name": "DEBUG: Zuordnung Problem finden",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "▶️ START",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-720, 64]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "b3f1eeab-2d1a-42f2-a9ba-9792568bc217",
+          "mode": "list",
+          "cachedResultName": "Kandidaten"
+        },
+        "options": {}
+      },
+      "id": "load-kandidaten",
+      "name": "📋 Kandidaten laden",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [-496, -48],
+      "credentials": {
+        "notionApi": {
+          "id": "0XxuLBeEBkLiPVOR",
+          "name": "Notion Kandidaten"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "c6d33fd3-0f92-4e6d-87fe-4cb9fdb2c2aa",
+          "mode": "list",
+          "cachedResultName": "Fachgeschäfte"
+        },
+        "options": {}
+      },
+      "id": "load-shops",
+      "name": "🏪 Fachgeschäfte laden",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [-496, 160],
+      "credentials": {
+        "notionApi": {
+          "id": "0XxuLBeEBkLiPVOR",
+          "name": "Notion Kandidaten"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "merge-data",
+      "name": "🔀 Kombination",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [-288, 64]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconsole.log('\\n========== DEBUG: ZUORDNUNG PROBLEM ==========\\n');\nconsole.log(`Total items: ${items.length}`);\n\nlet kandidatenCount = 0;\nlet fachgeschaefteCount = 0;\nlet kandidatenMitAdresse = 0;\nlet fachgeschaefteMitAdresse = 0;\nlet kandidatenMitDistanz = 0;\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Ist es ein Kandidat?\n  if (data.property_geburtsdatum) {\n    kandidatenCount++;\n    console.log(`\\n--- KANDIDAT ${kandidatenCount}: ${data.property_name} ---`);\n    console.log(`  Wohnadresse: ${data.property_wohnadresse || 'LEER'}`);\n    console.log(`  Gewünschte Distanz: ${data.property_gewunschte_distanz || 'NICHT GESETZT'}`);\n    \n    if (data.property_wohnadresse && data.property_wohnadresse.trim() !== '') {\n      kandidatenMitAdresse++;\n    }\n    \n    if (data.property_gewunschte_distanz) {\n      kandidatenMitDistanz++;\n    }\n  }\n  // Ist es ein Fachgeschäft?\n  else if (data.property_adresse) {\n    fachgeschaefteCount++;\n    console.log(`\\n--- FACHGESCHÄFT ${fachgeschaefteCount}: ${data.property_name} ---`);\n    console.log(`  Adresse: ${data.property_adresse || 'LEER'}`);\n    \n    if (data.property_adresse && data.property_adresse.trim() !== '') {\n      fachgeschaefteMitAdresse++;\n    }\n  }\n}\n\nconsole.log('\\n========== ZUSAMMENFASSUNG ==========');\nconsole.log(`Total Kandidaten: ${kandidatenCount}`);\nconsole.log(`Kandidaten mit Adresse: ${kandidatenMitAdresse}`);\nconsole.log(`Kandidaten mit Distanz-Einstellung: ${kandidatenMitDistanz}`);\nconsole.log(`Total Fachgeschäfte: ${fachgeschaefteCount}`);\nconsole.log(`Fachgeschäfte mit Adresse: ${fachgeschaefteMitAdresse}`);\n\nconsole.log('\\n========== PROBLEME ==========');\nif (kandidatenMitAdresse === 0) {\n  console.log('❌ PROBLEM: Keine Kandidaten haben Adressen!');\n}\nif (fachgeschaefteMitAdresse === 0) {\n  console.log('❌ PROBLEM: Keine Fachgeschäfte haben Adressen!');\n}\nif (kandidatenMitDistanz === 0) {\n  console.log('⚠️  WARNUNG: Keine Kandidaten haben Distanz-Einstellung (wird 50km Default verwendet)');\n}\n\nreturn [{\n  json: {\n    kandidaten_total: kandidatenCount,\n    kandidaten_mit_adresse: kandidatenMitAdresse,\n    kandidaten_mit_distanz: kandidatenMitDistanz,\n    fachgeschaefte_total: fachgeschaefteCount,\n    fachgeschaefte_mit_adresse: fachgeschaefteMitAdresse\n  }\n}];"
+      },
+      "id": "debug-analyze",
+      "name": "🔍 DEBUG Analyse",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-64, 64]
+    }
+  ],
+  "connections": {
+    "▶️ START": {
+      "main": [[
+        { "node": "📋 Kandidaten laden", "type": "main", "index": 0 },
+        { "node": "🏪 Fachgeschäfte laden", "type": "main", "index": 0 }
+      ]]
+    },
+    "📋 Kandidaten laden": {
+      "main": [[{ "node": "🔀 Kombination", "type": "main", "index": 0 }]]
+    },
+    "🏪 Fachgeschäfte laden": {
+      "main": [[{ "node": "🔀 Kombination", "type": "main", "index": 1 }]]
+    },
+    "🔀 Kombination": {
+      "main": [[{ "node": "🔍 DEBUG Analyse", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {}
+}
