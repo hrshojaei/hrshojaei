@@ -1,0 +1,56 @@
+{
+  "name": "TEST: Kandidaten Distanz anzeigen",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "▶️ START",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "b3f1eeab-2d1a-42f2-a9ba-9792568bc217",
+          "mode": "list",
+          "cachedResultName": "Kandidaten"
+        },
+        "options": {}
+      },
+      "id": "load-kandidaten",
+      "name": "📋 Kandidaten laden",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "credentials": {
+        "notionApi": {
+          "id": "0XxuLBeEBkLiPVOR",
+          "name": "Notion Kandidaten"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nconsole.log('\\n=== KANDIDATEN DISTANZ-EINSTELLUNGEN ===\\n');\n\nfor (const item of items) {\n  const data = item.json;\n  const name = data.property_name || 'Unbekannt';\n  const distanzFeld = data.property_gewunschte_distanz;\n  \n  console.log(`Kandidat: ${name}`);\n  console.log(`  Gewünschte Distanz Feld: ${distanzFeld || 'NICHT GESETZT'}`);\n  \n  // Parse Distanz\n  let distanz = 'Default (50km)';\n  if (distanzFeld) {\n    const match = distanzFeld.match(/\\d+/);\n    if (match) {\n      distanz = match[0] + 'km';\n    }\n  }\n  \n  console.log(`  Verwendete Distanz: ${distanz}`);\n  console.log('');\n  \n  results.push({\n    json: {\n      name: name,\n      distanz_feld_wert: distanzFeld || 'NICHT GESETZT',\n      verwendete_distanz: distanz\n    }\n  });\n}\n\nconsole.log('\\n=== ALLE VERFÜGBAREN PROPERTIES ===');\nif (items.length > 0) {\n  const firstItem = items[0].json;\n  const properties = Object.keys(firstItem).filter(key => key.startsWith('property_'));\n  console.log('Properties:', properties.join(', '));\n}\n\nreturn results;"
+      },
+      "id": "show-distance",
+      "name": "🔍 Distanz-Einstellungen anzeigen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "▶️ START": {
+      "main": [[{ "node": "📋 Kandidaten laden", "type": "main", "index": 0 }]]
+    },
+    "📋 Kandidaten laden": {
+      "main": [[{ "node": "🔍 Distanz-Einstellungen anzeigen", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {}
+}
