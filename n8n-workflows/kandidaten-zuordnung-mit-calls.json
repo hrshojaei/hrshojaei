@@ -255,7 +255,8 @@
       "position": [
         1280,
         64
-      ]
+      ],
+      "disabled": true
     }
   ],
   "connections": {
