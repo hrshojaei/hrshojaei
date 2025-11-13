@@ -2,14 +2,39 @@
   "name": "Kandidaten-Zuordnung (flexibel)",
   "nodes": [
     {
-      "parameters": {},
+      "parameters": {
+        "options": {}
+      },
       "id": "1c54985e-da70-4d11-ab92-0896158bf8f6",
-      "name": "Manueller Start",
+      "name": "Manueller Start mit Distanz-Auswahl",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
         -944,
         64
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "distanz-input",
+              "name": "max_distanz_km",
+              "value": "",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "distanz-input-node",
+      "name": "📏 Distanz eingeben (10/20/50/75/100)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        -720,
+        -100
       ]
     },
     {
