@@ -7,6 +7,7 @@ from typing import Optional, List, Dict
 from dataclasses import dataclass, asdict
 from enum import Enum
 import json
+import asyncio
 from loguru import logger
 
 
@@ -68,6 +69,12 @@ class CandidateManager:
     def __init__(self, db_path: str = "./data/candidates.db"):
         self.db_path = db_path
         self._init_database()
+        
+        # Initialize integrations
+        from src.notion_client import notion_client
+        from src.n8n_webhook import n8n_webhook
+        self.notion_client = notion_client
+        self.n8n_webhook = n8n_webhook
 
     def _get_connection(self) -> sqlite3.Connection:
         """Get database connection"""
@@ -148,7 +155,41 @@ class CandidateManager:
             conn.commit()
             candidate_id = cursor.lastrowid
             logger.info(f"Added candidate: {name} (ID: {candidate_id})")
+            
+            # Sync to Notion and send n8n event
+            asyncio.create_task(self._sync_new_candidate(
+                candidate_id, name, phone, email, current_company, 
+                current_position, experience_years, notes
+            ))
+            
             return candidate_id
+    
+    async def _sync_new_candidate(
+        self, candidate_id, name, phone, email, 
+        current_company, current_position, experience_years, notes
+    ):
+        """Sync new candidate to Notion and n8n"""
+        # Sync to Notion
+        await self.notion_client.create_or_update_candidate(
+            candidate_id=candidate_id,
+            name=name,
+            phone=phone,
+            email=email,
+            current_company=current_company,
+            current_position=current_position,
+            experience_years=experience_years,
+            status="new",
+            notes=notes
+        )
+        
+        # Send n8n event
+        await self.n8n_webhook.candidate_created(
+            candidate_id=candidate_id,
+            name=name,
+            phone=phone,
+            email=email,
+            company=current_company
+        )
 
     def get_candidate(self, candidate_id: Optional[int] = None, phone: Optional[str] = None) -> Optional[Candidate]:
         """Get candidate by ID or phone"""
@@ -166,6 +207,10 @@ class CandidateManager:
 
     def update_candidate_status(self, candidate_id: int, status: CandidateStatus):
         """Update candidate status"""
+        # Get candidate before update for comparison
+        candidate = self.get_candidate(candidate_id)
+        old_status = candidate.status if candidate else None
+        
         with self._get_connection() as conn:
             conn.execute("""
                 UPDATE candidates
@@ -174,6 +219,52 @@ class CandidateManager:
             """, (status.value, candidate_id))
             conn.commit()
             logger.info(f"Updated candidate {candidate_id} status to {status.value}")
+        
+        # Sync to Notion and n8n
+        if candidate:
+            asyncio.create_task(self._sync_candidate_status_update(
+                candidate_id, candidate.name, status.value, old_status
+            ))
+    
+    async def _sync_candidate_status_update(
+        self, candidate_id, name, new_status, old_status
+    ):
+        """Sync candidate status update to Notion and n8n"""
+        # Get full candidate data
+        candidate = self.get_candidate(candidate_id)
+        if not candidate:
+            return
+        
+        # Sync to Notion
+        await self.notion_client.create_or_update_candidate(
+            candidate_id=candidate_id,
+            name=candidate.name,
+            phone=candidate.phone,
+            email=candidate.email,
+            current_company=candidate.current_company,
+            current_position=candidate.current_position,
+            experience_years=candidate.experience_years,
+            status=new_status,
+            notes=candidate.notes
+        )
+        
+        # Send n8n event
+        await self.n8n_webhook.candidate_updated(
+            candidate_id=candidate_id,
+            name=name,
+            status=new_status,
+            changes={"status": {"from": old_status, "to": new_status}}
+        )
+        
+        # Special event if candidate is interested
+        if new_status == CandidateStatus.INTERESTED.value:
+            await self.n8n_webhook.candidate_interested(
+                candidate_id=candidate_id,
+                candidate_name=name,
+                phone=candidate.phone,
+                email=candidate.email,
+                notes=candidate.notes
+            )
 
     def update_last_contact(self, candidate_id: int):
         """Update last contact timestamp"""
@@ -254,6 +345,57 @@ class CandidateManager:
                 conn.execute(query, params)
                 conn.commit()
                 logger.info(f"Updated call log {call_log_id}")
+                
+                # If call ended, sync to Notion and n8n
+                if ended_at or outcome:
+                    asyncio.create_task(self._sync_call_completion(
+                        call_log_id, duration_seconds, outcome, summary, next_action
+                    ))
+    
+    async def _sync_call_completion(
+        self, call_log_id, duration_seconds, outcome, summary, next_action
+    ):
+        """Sync call completion to Notion and n8n"""
+        # Get call log and candidate info
+        call_log = self.get_call_log(call_log_id)
+        if not call_log:
+            return
+        
+        candidate = self.get_candidate(call_log.candidate_id)
+        if not candidate:
+            return
+        
+        # Sync to Notion
+        await self.notion_client.add_call_log(
+            candidate_id=candidate.id,
+            candidate_name=candidate.name,
+            call_sid=call_log.call_sid or f"call_{call_log_id}",
+            duration=duration_seconds or 0,
+            outcome=outcome or "unknown",
+            summary=summary,
+            next_action=next_action,
+            call_timestamp=datetime.fromisoformat(call_log.started_at) if call_log.started_at else datetime.now()
+        )
+        
+        # Send n8n event
+        await self.n8n_webhook.call_completed(
+            call_sid=call_log.call_sid or f"call_{call_log_id}",
+            candidate_id=candidate.id,
+            candidate_name=candidate.name,
+            duration=duration_seconds or 0,
+            outcome=outcome or "unknown",
+            summary=summary,
+            next_action=next_action
+        )
+        
+        # Handle special cases
+        if outcome == CandidateStatus.CALLBACK_REQUESTED.value:
+            await self.n8n_webhook.callback_requested(
+                candidate_id=candidate.id,
+                candidate_name=candidate.name,
+                phone=candidate.phone,
+                requested_time=next_action
+            )
 
     def add_conversation_message(self, call_log_id: int, role: str, message: str):
         """Add a message to conversation history"""
@@ -263,6 +405,14 @@ class CandidateManager:
                 VALUES (?, ?, ?)
             """, (call_log_id, role, message))
             conn.commit()
+    
+    def get_call_log(self, call_log_id: int) -> Optional[CallLog]:
+        """Get call log by ID"""
+        with self._get_connection() as conn:
+            row = conn.execute("SELECT * FROM call_logs WHERE id = ?", (call_log_id,)).fetchone()
+            if row:
+                return CallLog(**dict(row))
+            return None
 
     def get_conversation_history(self, call_log_id: int) -> List[Dict]:
         """Get conversation history for a call"""

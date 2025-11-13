@@ -1,0 +1,209 @@
+{
+  "name": "Recruiting Agent - Basic Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "recruiting-events",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "recruiting-events"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"event\"]}}",
+              "operation": "equals",
+              "value2": "candidate.interested"
+            }
+          ]
+        }
+      },
+      "name": "Is Candidate Interested?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"event\"]}}",
+              "operation": "equals",
+              "value2": "call.completed"
+            }
+          ]
+        }
+      },
+      "name": "Is Call Completed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 500]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract candidate info\nconst data = items[0].json.data;\n\nreturn [\n  {\n    json: {\n      subject: `🎯 Interessierter Kandidat: ${data.candidate_name}`,\n      message: `Ein Kandidat hat Interesse bekundet!\n\nName: ${data.candidate_name}\nTelefon: ${data.phone}\nEmail: ${data.email || 'Nicht angegeben'}\nNotizen: ${data.notes || 'Keine'}\n\nBitte zeitnah kontaktieren!`,\n      candidate_id: data.candidate_id,\n      candidate_name: data.candidate_name,\n      phone: data.phone\n    }\n  }\n];"
+      },
+      "name": "Format Notification",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "resource": "channel",
+        "operation": "sendMessage",
+        "channelId": "YOUR_SLACK_CHANNEL_ID",
+        "text": "={{$json[\"subject\"]}}\\n\\n={{$json[\"message\"]}}"
+      },
+      "name": "Send Slack Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "fromEmail": "recruiting@ihre-firma.de",
+        "toEmail": "hiring-manager@ihre-firma.de",
+        "subject": "={{$json[\"subject\"]}}",
+        "text": "={{$json[\"message\"]}}"
+      },
+      "name": "Send Email Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract call log info\nconst data = items[0].json.data;\n\nreturn [\n  {\n    json: {\n      subject: `📞 Anruf beendet: ${data.candidate_name}`,\n      message: `Anruf-Details:\n\nKandidat: ${data.candidate_name}\nDauer: ${Math.floor(data.duration_seconds / 60)}m ${data.duration_seconds % 60}s\nErgebnis: ${data.outcome}\nZusammenfassung: ${data.summary || 'Keine'}\nNächster Schritt: ${data.next_action || 'Keiner'}`,\n      candidate_id: data.candidate_id,\n      outcome: data.outcome\n    }\n  }\n];"
+      },
+      "name": "Format Call Log",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 500]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Call Logs",
+        "columns": "Timestamp,Candidate ID,Name,Outcome,Duration,Summary,Next Action",
+        "options": {}
+      },
+      "name": "Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 2,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Event received successfully"
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Is Candidate Interested?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Call Completed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Candidate Interested?": {
+      "main": [
+        [
+          {
+            "node": "Format Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Call Completed?": {
+      "main": [
+        [
+          {
+            "node": "Format Call Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Notification": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Email Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Call Log": {
+      "main": [
+        [
+          {
+            "node": "Log to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email Alert": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "id": "recruiting-basic-workflow"
+}
