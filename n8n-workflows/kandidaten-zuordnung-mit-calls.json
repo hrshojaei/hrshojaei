@@ -220,7 +220,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  properties: {\n    'Zukünftiger Arbeitgeber': {\n      relation: $json.fachgeschaefte_ids.map(id => ({ id }))\n    },\n    'Kommentar': {\n      rich_text: [\n        {\n          type: 'text',\n          text: {\n            content: 'Zugeordnete Geschäfte (10-100 km):\\n' + $json.fachgeschaefte_namen.map((name, i) => `${i+1}. ${name}: ${$json.distanzen_km[i]} km`).join('\\n')\n          }\n        }\n      ]\n    }\n  }\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  properties: {\n    'zukünftiger arbeitgeber': {\n      relation: $json.fachgeschaefte_ids.map(id => ({ id }))\n    },\n    'Kommentar': {\n      rich_text: [\n        {\n          type: 'text',\n          text: {\n            content: 'Zugeordnete Geschäfte (10-100 km):\\n' + $json.fachgeschaefte_namen.map((name, i) => `${i+1}. ${name}: ${$json.distanzen_km[i]} km`).join('\\n')\n          }\n        }\n      ]\n    }\n  }\n}) }}",
         "options": {}
       },
       "id": "update-kandidat-notion",
