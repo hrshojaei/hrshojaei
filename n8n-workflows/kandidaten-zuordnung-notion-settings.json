@@ -15,7 +15,7 @@
         "operation": "getAll",
         "databaseId": {
           "__rl": true,
-          "value": "SETTINGS_DATABASE_ID_HIER_EINFUEGEN",
+          "value": "2aa0974bd6228034a32fd4489b15a5a4",
           "mode": "id"
         },
         "options": {}
