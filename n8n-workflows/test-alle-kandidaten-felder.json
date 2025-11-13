@@ -1,0 +1,56 @@
+{
+  "name": "TEST: Alle Kandidaten-Felder anzeigen",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "▶️ START",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "b3f1eeab-2d1a-42f2-a9ba-9792568bc217",
+          "mode": "list",
+          "cachedResultName": "Kandidaten"
+        },
+        "options": {}
+      },
+      "id": "load-kandidaten",
+      "name": "📋 Kandidaten laden",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "credentials": {
+        "notionApi": {
+          "id": "0XxuLBeEBkLiPVOR",
+          "name": "Notion Kandidaten"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nif (items.length === 0) {\n  console.log('Keine Kandidaten gefunden!');\n  return [];\n}\n\n// Nimm den ersten Kandidaten\nconst firstKandidat = items[0].json;\n\nconsole.log('\\n========== ALLE FELDER DES ERSTEN KANDIDATEN ==========\\n');\n\n// Alle Properties anzeigen\nconst allKeys = Object.keys(firstKandidat);\nconst properties = allKeys.filter(key => key.startsWith('property_'));\n\nconsole.log('Gefundene Property-Felder:');\nfor (const prop of properties) {\n  const value = firstKandidat[prop];\n  console.log(`  ${prop}: ${JSON.stringify(value)}`);\n}\n\nconsole.log('\\n========== SUCHE NACH DISTANZ-FELD ==========\\n');\n\nconst distanzFelder = properties.filter(prop => \n  prop.toLowerCase().includes('distanz') || \n  prop.toLowerCase().includes('distance') ||\n  prop.toLowerCase().includes('gewunschte') ||\n  prop.toLowerCase().includes('km')\n);\n\nif (distanzFelder.length > 0) {\n  console.log('✅ DISTANZ-FELDER GEFUNDEN:');\n  for (const field of distanzFelder) {\n    console.log(`  ${field}: ${firstKandidat[field]}`);\n  }\n} else {\n  console.log('❌ KEIN DISTANZ-FELD GEFUNDEN!');\n  console.log('Alle verfügbaren Felder:');\n  console.log(properties.join(', '));\n}\n\nreturn [{\n  json: {\n    alle_felder: properties,\n    distanz_felder: distanzFelder\n  }\n}];"
+      },
+      "id": "show-fields",
+      "name": "🔍 Alle Felder anzeigen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "▶️ START": {
+      "main": [[{ "node": "📋 Kandidaten laden", "type": "main", "index": 0 }]]
+    },
+    "📋 Kandidaten laden": {
+      "main": [[{ "node": "🔍 Alle Felder anzeigen", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {}
+}
