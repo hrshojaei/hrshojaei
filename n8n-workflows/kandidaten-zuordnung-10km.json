@@ -1,0 +1,411 @@
+{
+  "name": "Kandidaten-Zuordnung 10km",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1c54985e-da70-4d11-ab92-0896158bf8f6",
+      "name": "Manueller Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -944,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "min_distanz_km",
+              "value": 10
+            },
+            {
+              "name": "max_distanz_km",
+              "value": 10
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cb945ff4-b364-4ea8-9da9-475d6e9ad5b4",
+      "name": "⚙️ Distanz einstellen (10 km)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        -720,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "b3f1eeab-2d1a-42f2-a9ba-9792568bc217",
+          "mode": "list",
+          "cachedResultName": "Kandidaten",
+          "cachedResultUrl": "https://www.notion.so/b3f1eeab2d1a42f2a9ba9792568bc217"
+        },
+        "options": {}
+      },
+      "id": "dcd58bfc-b8ad-4a10-9698-ec9a809e023a",
+      "name": "📋 Kandidaten laden",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [
+        -496,
+        -48
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "0XxuLBeEBkLiPVOR",
+          "name": "Notion Kandidaten"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "c6d33fd3-0f92-4e6d-87fe-4cb9fdb2c2aa",
+          "mode": "list",
+          "cachedResultName": "Fachgeschäfte",
+          "cachedResultUrl": "https://www.notion.so/c6d33fd30f924e6d87fe4cb9fdb2c2aa"
+        },
+        "options": {}
+      },
+      "id": "4d68c9d9-5edc-459b-b417-dd60fc84a3ae",
+      "name": "🏪 Fachgeschäfte laden",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [
+        -496,
+        160
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "0XxuLBeEBkLiPVOR",
+          "name": "Notion Kandidaten"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "29a0974b-d622-8043-850b-f887c636d116",
+          "mode": "list",
+          "cachedResultName": "Aktueller Arbeitgeber",
+          "cachedResultUrl": "https://www.notion.so/29a0974bd6228043850bf887c636d116"
+        },
+        "options": {}
+      },
+      "id": "7c4128b0-ec58-4bed-9d72-dc0b57344745",
+      "name": "👔 Aktuelle Arbeitgeber laden",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [
+        -496,
+        352
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "0XxuLBeEBkLiPVOR",
+          "name": "Notion Kandidaten"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "82ad63fe-9685-4bac-9372-7fe6ec47af1b",
+      "name": "🔀 Kombination",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        -288,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Schritt 1: Adressen sammeln und Typ markieren\nconst items = $input.all();\nconst addressItems = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // UNTERSCHEIDUNG: Kandidaten haben property_geburtsdatum, Fachgeschäfte nicht!\n  \n  // Kandidaten - haben Geburtsdatum (sind Personen) UND wohnadresse\n  if (data.property_geburtsdatum && data.property_wohnadresse && data.property_wohnadresse.trim() !== '') {\n    addressItems.push({\n      json: {\n        id: data.id,\n        name: data.property_name,\n        phone: data.property_handynummer || null,\n        address: data.property_wohnadresse,\n        type: 'kandidat'\n      }\n    });\n  }\n  // Fachgeschäfte - haben KEIN Geburtsdatum (sind Geschäfte) ABER property_adresse\n  else if (!data.property_geburtsdatum && data.property_adresse && data.property_adresse.trim() !== '') {\n    addressItems.push({\n      json: {\n        id: data.id,\n        name: data.property_name,\n        address: data.property_adresse,\n        type: 'fachgeschaeft'\n      }\n    });\n  }\n}\n\nconsole.log(`Extrahiert: ${addressItems.filter(i => i.json.type === 'kandidat').length} Kandidaten, ${addressItems.filter(i => i.json.type === 'fachgeschaeft').length} Fachgeschäfte`);\n\nreturn addressItems;"
+      },
+      "id": "a698ebef-162b-468b-8300-af11375f568f",
+      "name": "📍 Adressen extrahieren",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://maps.googleapis.com/maps/api/geocode/json?address={{ encodeURIComponent($json.address) }}&key=AIzaSyDPxA9a8qyRRhIzMVCR4n-vL2xEKqeC6no",
+        "options": {}
+      },
+      "id": "95ef7cf7-c0c6-487d-8289-2c5fd449ff39",
+      "name": "🌍 Google Geocoding API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        160,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Koordinaten aus API-Response extrahieren - ALLE Items verarbeiten!\nconst items = $input.all();\nconst results = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const response = items[i].json;\n  const originalItem = $('📍 Adressen extrahieren').all()[i].json;\n  \n  if (response.status === 'OK' && response.results && response.results.length > 0) {\n    const location = response.results[0].geometry.location;\n    \n    results.push({\n      json: {\n        id: originalItem.id,\n        name: originalItem.name,\n        phone: originalItem.phone,\n        address: originalItem.address,\n        type: originalItem.type,\n        lat: location.lat,\n        lng: location.lng,\n        geocoded: true\n      }\n    });\n  } else {\n    results.push({\n      json: {\n        id: originalItem.id,\n        name: originalItem.name,\n        phone: originalItem.phone,\n        address: originalItem.address,\n        type: originalItem.type,\n        geocoded: false\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "id": "2307414d-84e0-48e0-8cc3-4331ac11c57a",
+      "name": "📊 Koordinaten verarbeiten",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        384,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "842bab50-d2b1-4e99-83ec-94274d8d6f49",
+      "name": "🔗 Alle Koordinaten sammeln",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        608,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Zuordnung mit MIN und MAX Distanz\nconst allItems = $input.first().json.data;\n\n// Distanz-Bereich (hier anpassen!)\nconst minDistanzKm = 10;\nconst maxDistanzKm = 10;\n\nconsole.log(\"=== DISTANZ-BEREICH ===\");\nconsole.log(`Min: ${minDistanzKm} km, Max: ${maxDistanzKm} km`);\n\n// Kandidaten und Fachgeschäfte trennen\nconst kandidaten = allItems.filter(item => item.type === 'kandidat' && item.geocoded);\nconst fachgeschaefte = allItems.filter(item => item.type === 'fachgeschaeft' && item.geocoded);\n\nconsole.log(`\\nKandidaten: ${kandidaten.length}`);\nconsole.log(`Fachgeschäfte: ${fachgeschaefte.length}`);\n\nif (kandidaten.length === 0 || fachgeschaefte.length === 0) {\n  return [{\n    json: {\n      error: 'Keine gültigen Kandidaten oder Fachgeschäfte gefunden',\n      kandidaten_count: kandidaten.length,\n      fachgeschaefte_count: fachgeschaefte.length\n    }\n  }];\n}\n\n// Haversine-Formel\nfunction calculateDistance(lat1, lon1, lat2, lon2) {\n  const R = 6371;\n  const dLat = (lat2 - lat1) * Math.PI / 180;\n  const dLon = (lon2 - lon1) * Math.PI / 180;\n  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +\n            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *\n            Math.sin(dLon/2) * Math.sin(dLon/2);\n  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));\n  return R * c;\n}\n\n// Zuordnungen berechnen MIT MIN/MAX Filter\nconst ergebnisse = [];\n\nfor (const kandidat of kandidaten) {\n  const naheGeschafte = [];\n  \n  for (const geschaeft of fachgeschaefte) {\n    const distanz = calculateDistance(\n      kandidat.lat,\n      kandidat.lng,\n      geschaeft.lat,\n      geschaeft.lng\n    );\n    \n    const distanzGerundet = Math.round(distanz * 10) / 10;\n    \n    // MIN und MAX Distanz prüfen\n    if (distanz >= minDistanzKm && distanz <= maxDistanzKm) {\n      naheGeschafte.push({\n        id: geschaeft.id,\n        name: geschaeft.name,\n        distanz: distanzGerundet\n      });\n    }\n  }\n  \n  // Sortiere nach Distanz (nächstes zuerst)\n  naheGeschafte.sort((a, b) => a.distanz - b.distanz);\n  \n  if (naheGeschafte.length > 0) {\n    ergebnisse.push({\n      json: {\n        kandidat_id: kandidat.id,\n        kandidat_name: kandidat.name,\n        kandidat_phone: kandidat.phone,\n        fachgeschaefte_ids: naheGeschafte.map(g => g.id),\n        fachgeschaefte_namen: naheGeschafte.map(g => g.name),\n        distanzen_km: naheGeschafte.map(g => g.distanz),\n        anzahl: naheGeschafte.length,\n        naechstes_geschaeft: naheGeschafte[0].name,\n        naechste_distanz_km: naheGeschafte[0].distanz\n      }\n    });\n  }\n}\n\nconsole.log(`\\n${ergebnisse.length} Kandidaten im Distanz-Bereich ${minDistanzKm}-${maxDistanzKm} km`);\n\nif (ergebnisse.length === 0) {\n  return [{\n    json: {\n      info: 'Keine Kandidaten im angegebenen Distanz-Bereich gefunden',\n      min_distanz_km: minDistanzKm,\n      max_distanz_km: maxDistanzKm,\n      kandidaten_count: kandidaten.length,\n      fachgeschaefte_count: fachgeschaefte.length\n    }\n  }];\n}\n\nreturn ergebnisse;"
+      },
+      "id": "35ea2934-bb0c-4775-98bb-179680e85aae",
+      "name": "🎯 Zuordnung berechnen (10 km)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.notion.com/v1/pages/{{ $json.kandidat_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Notion-Version",
+              "value": "2022-06-28"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  properties: {\n    'zukünftiger Arbeitgeber': {\n      relation: $json.fachgeschaefte_ids.map(id => ({ id }))\n    },\n    'Distanz Wohnort zukünftiger Arbeitgeber': {\n      number: $json.naechste_distanz_km\n    },\n    'Kommentar': {\n      rich_text: [\n        {\n          type: 'text',\n          text: {\n            content: 'Zugeordnete Geschäfte (10 km):\\n' + $json.fachgeschaefte_namen.map((name, i) => `${i+1}. ${name}: ${$json.distanzen_km[i]} km`).join('\\n')\n          }\n        }\n      ]\n    }\n  }\n}) }}",
+        "options": {}
+      },
+      "id": "update-kandidat-notion",
+      "name": "✍️ Kandidaten in Notion aktualisieren",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1280,
+        64
+      ],
+      "credentials": {
+        "notionApi": {
+          "id": "0XxuLBeEBkLiPVOR",
+          "name": "Notion Kandidaten"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.CALLING_API_URL }}/api/n8n/trigger-call",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  kandidat_id: $json.kandidat_id,\n  kandidat_name: $json.kandidat_name,\n  phone: $json.kandidat_phone,\n  fachgeschaefte: $json.fachgeschaefte_namen,\n  distanzen: $json.distanzen_km,\n  naechstes_geschaeft: $json.naechstes_geschaeft\n}) }}",
+        "options": {}
+      },
+      "id": "new-call-trigger-node",
+      "name": "📞 Call triggern",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1280,
+        64
+      ],
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Manueller Start": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Distanz einstellen (10 km)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Distanz einstellen (10 km)": {
+      "main": [
+        [
+          {
+            "node": "📋 Kandidaten laden",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🏪 Fachgeschäfte laden",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "👔 Aktuelle Arbeitgeber laden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Kandidaten laden": {
+      "main": [
+        [
+          {
+            "node": "🔀 Kombination",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏪 Fachgeschäfte laden": {
+      "main": [
+        [
+          {
+            "node": "🔀 Kombination",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "👔 Aktuelle Arbeitgeber laden": {
+      "main": [
+        [
+          {
+            "node": "🔀 Kombination",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🔀 Kombination": {
+      "main": [
+        [
+          {
+            "node": "📍 Adressen extrahieren",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📍 Adressen extrahieren": {
+      "main": [
+        [
+          {
+            "node": "🌍 Google Geocoding API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🌍 Google Geocoding API": {
+      "main": [
+        [
+          {
+            "node": "📊 Koordinaten verarbeiten",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Koordinaten verarbeiten": {
+      "main": [
+        [
+          {
+            "node": "🔗 Alle Koordinaten sammeln",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔗 Alle Koordinaten sammeln": {
+      "main": [
+        [
+          {
+            "node": "🎯 Zuordnung berechnen (10 km)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎯 Zuordnung berechnen (10 km)": {
+      "main": [
+        [
+          {
+            "node": "✍️ Kandidaten in Notion aktualisieren",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✍️ Kandidaten in Notion aktualisieren": {
+      "main": [
+        [
+          {
+            "node": "📞 Call triggern",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "569c37d68ab6b125eefce2774fbbe6dfa05499b9a3c9ba0b000024d5267810fb"
+  }
+}
