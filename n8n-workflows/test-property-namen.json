@@ -1,0 +1,58 @@
+{
+  "name": "TEST: Property-Namen im Output anzeigen",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "b3f1eeab-2d1a-42f2-a9ba-9792568bc217",
+          "mode": "list",
+          "cachedResultName": "Kandidaten"
+        },
+        "options": {
+          "limit": 1
+        }
+      },
+      "id": "load-kandidat",
+      "name": "Kandidat laden",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "credentials": {
+        "notionApi": {
+          "id": "0XxuLBeEBkLiPVOR",
+          "name": "Notion Kandidaten"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst arbeitgeberProps = [];\n\nfor (const key in item) {\n  if (key.toLowerCase().includes('arbeitgeber')) {\n    arbeitgeberProps.push({\n      property_name: key,\n      type: Array.isArray(item[key]) ? 'Array' : typeof item[key],\n      value: JSON.stringify(item[key])\n    });\n  }\n}\n\nreturn arbeitgeberProps.map(p => ({ json: p }));"
+      },
+      "id": "find-props",
+      "name": "Arbeitgeber Properties finden",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [[{"node": "Kandidat laden", "type": "main", "index": 0}]]
+    },
+    "Kandidat laden": {
+      "main": [[{"node": "Arbeitgeber Properties finden", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {}
+}
