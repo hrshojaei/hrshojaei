@@ -204,19 +204,6 @@
     },
     {
       "parameters": {
-        "jsCode": "// DEBUG: Alle Arbeitgeber-Properties anzeigen\nconst kandidat = $('📋 Kandidaten laden').first().json;\n\n// Finde alle Property-Keys die \"arbeitgeber\" enthalten\nconst arbeitgeberKeys = Object.keys(kandidat).filter(key => \n  key.toLowerCase().includes('arbeitgeber')\n);\n\nconsole.log('=== ALLE ARBEITGEBER PROPERTIES ===');\narbeitgeberKeys.forEach(key => {\n  const value = kandidat[key];\n  const isArray = Array.isArray(value);\n  const type = isArray ? 'Array' : typeof value;\n  const length = isArray ? value.length : 'N/A';\n  console.log(`${key}:`);\n  console.log(`  Typ: ${type}, Länge: ${length}`);\n  if (isArray && value.length > 0) {\n    console.log(`  Erster Wert:`, value[0]);\n  } else {\n    console.log(`  Wert:`, value);\n  }\n});\n\n// Einfach durchleiten\nreturn $input.all();"
-      },
-      "id": "find-property-name",
-      "name": "🔍 Property-Namen finden",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1056,
-        64
-      ]
-    },
-    {
-      "parameters": {
         "method": "PATCH",
         "url": "=https://api.notion.com/v1/pages/{{ $json.kandidat_id }}",
         "authentication": "predefinedCredentialType",
@@ -393,17 +380,6 @@
       ]
     },
     "🎯 Zuordnung berechnen (10-100 km)": {
-      "main": [
-        [
-          {
-            "node": "🔍 Property-Namen finden",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "🔍 Property-Namen finden": {
       "main": [
         [
           {
