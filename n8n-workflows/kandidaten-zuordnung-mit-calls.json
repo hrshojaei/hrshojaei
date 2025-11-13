@@ -204,6 +204,19 @@
     },
     {
       "parameters": {
+        "jsCode": "// DEBUG: Finde den richtigen Property-Namen aus den Kandidaten-Daten\nconst kandidat = $('📋 Kandidaten laden').first().json;\n\n// Finde alle Property-Keys die \"arbeitgeber\" enthalten\nconst arbeitgeberKeys = Object.keys(kandidat).filter(key => \n  key.toLowerCase().includes('arbeitgeber')\n);\n\nconsole.log('=== GEFUNDENE ARBEITGEBER PROPERTIES ===');\nconsole.log(arbeitgeberKeys);\n\n// Finde den property key für \"zukünftiger arbeitgeber\"\nconst zukunftigerKey = arbeitgeberKeys.find(key => \n  key.toLowerCase().includes('zuk') && key.toLowerCase().includes('nftig')\n);\n\nif (zukunftigerKey) {\n  // Extrahiere den Property-Namen ohne \"property_\" Prefix\n  const propertyName = zukunftigerKey.replace('property_', '').replace(/_/g, ' ');\n  console.log('Property Name gefunden:', propertyName);\n  \n  // Weiterleiten mit dem korrekten Property-Namen\n  return $input.all().map(item => ({\n    json: {\n      ...item.json,\n      _property_name: propertyName\n    }\n  }));\n} else {\n  console.log('FEHLER: Kein Zukünftiger Arbeitgeber Property gefunden!');\n  return $input.all();\n}"
+      },
+      "id": "find-property-name",
+      "name": "🔍 Property-Namen finden",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        64
+      ]
+    },
+    {
+      "parameters": {
         "method": "PATCH",
         "url": "=https://api.notion.com/v1/pages/{{ $json.kandidat_id }}",
         "authentication": "predefinedCredentialType",
@@ -220,7 +233,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  properties: {\n    'zukünftiger arbeitgeber': {\n      relation: $json.fachgeschaefte_ids.map(id => ({ id }))\n    },\n    'Kommentar': {\n      rich_text: [\n        {\n          type: 'text',\n          text: {\n            content: 'Zugeordnete Geschäfte (10-100 km):\\n' + $json.fachgeschaefte_namen.map((name, i) => `${i+1}. ${name}: ${$json.distanzen_km[i]} km`).join('\\n')\n          }\n        }\n      ]\n    }\n  }\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  properties: {\n    [$json._property_name || 'Zukünftiger Arbeitgeber']: {\n      relation: $json.fachgeschaefte_ids.map(id => ({ id }))\n    },\n    'Kommentar': {\n      rich_text: [\n        {\n          type: 'text',\n          text: {\n            content: 'Zugeordnete Geschäfte (10-100 km):\\n' + $json.fachgeschaefte_namen.map((name, i) => `${i+1}. ${name}: ${$json.distanzen_km[i]} km`).join('\\n')\n          }\n        }\n      ]\n    }\n  }\n}) }}",
         "options": {}
       },
       "id": "update-kandidat-notion",
@@ -228,7 +241,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        1056,
+        1280,
         64
       ],
       "credentials": {
@@ -380,6 +393,17 @@
       ]
     },
     "🎯 Zuordnung berechnen (10-100 km)": {
+      "main": [
+        [
+          {
+            "node": "🔍 Property-Namen finden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Property-Namen finden": {
       "main": [
         [
           {
