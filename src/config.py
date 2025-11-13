@@ -67,6 +67,15 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_to_file: bool = True
 
+    # Notion Integration
+    notion_api_key: Optional[str] = None
+    notion_database_id: Optional[str] = None
+    notion_enabled: bool = False
+
+    # n8n Webhook Integration
+    n8n_webhook_url: Optional[str] = None
+    n8n_enabled: bool = False
+
     def validate_api_keys(self) -> bool:
         """Validate that required API keys are present"""
         # Validate AI provider
