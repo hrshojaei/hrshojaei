@@ -119,7 +119,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ properties: { 'zukünftiger Arbeitgeber': { relation: $json.shop_ids.map(id => ({id})) }, 'Distanz Wohnort zukünftiger Arbeitgeber': { number: $json.min_dist }, 'Kommentar': { rich_text: [{ text: { content: $json.comment } }] } } }) }}"
+        "jsonBody": "={{ JSON.stringify({ properties: { 'zukünftiger Arbeitgeber': { relation: $json.shop_ids.map(id => ({id})) }, 'Distanz Wohnort zukünftiger Arbeitgeber': { rich_text: [{ text: { content: String($json.min_dist) + ' km' } }] }, 'Kommentar': { rich_text: [{ text: { content: $json.comment } }] } } }) }}"
       },
       "id": "update",
       "name": "Notion Update",
