@@ -2,20 +2,11 @@
   "name": "Kandidaten-Zuordnung (Pro Kandidat - Auto)",
   "nodes": [
     {
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "minutes",
-              "minutesInterval": 1
-            }
-          ]
-        }
-      },
-      "id": "schedule-trigger",
-      "name": "⏰ Jede Minute",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.1,
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "▶️ START (Manuell)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
       "position": [-720, 64]
     },
     {
@@ -294,7 +285,7 @@
     }
   ],
   "connections": {
-    "⏰ Jede Minute": {
+    "▶️ START (Manuell)": {
       "main": [[
         { "node": "📋 Kandidaten laden", "type": "main", "index": 0 },
         { "node": "🏪 Fachgeschäfte laden", "type": "main", "index": 0 },
