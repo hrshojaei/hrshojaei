@@ -17,6 +17,9 @@
           "__rl": true,
           "value": "b3f1eeab-2d1a-42f2-a9ba-9792568bc217",
           "mode": "list"
+        },
+        "options": {
+          "limit": 10
         }
       },
       "id": "load-kandidaten",
@@ -128,7 +131,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ properties: { 'zukünftiger Arbeitgeber': { relation: $json.shop_ids.map(id => ({id})) }, 'Distanz Wohnort zukünftiger Arbeitgeber': { number: $json.min_dist }, 'Kommentar': { rich_text: [{ text: { content: $json.comment } }] } } }) }}"
+        "jsonBody": "={{ JSON.stringify({ properties: { 'zukünftiger Arbeitgeber': { relation: $json.shop_ids.map(id => ({id})) }, 'Distanz Wohnort zukünftiger Arbeitgeber': { rich_text: [{ text: { content: String($json.min_dist) + ' km' } }] }, 'Kommentar': { rich_text: [{ text: { content: $json.comment } }] } } }) }}"
       },
       "id": "update",
       "name": "Notion Update",
