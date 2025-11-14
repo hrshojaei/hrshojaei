@@ -1,12 +1,21 @@
 {
-  "name": "Kandidaten-Zuordnung (Pro Kandidat)",
+  "name": "Kandidaten-Zuordnung (Pro Kandidat - Auto)",
   "nodes": [
     {
-      "parameters": {},
-      "id": "manual-trigger",
-      "name": "▶️ START",
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "⏰ Jede Minute",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
       "position": [-720, 64]
     },
     {
@@ -94,13 +103,41 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst addressItems = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // KANDIDAT mit Distanz-Einstellung\n  if (data.property_geburtsdatum && data.property_wohnadresse && data.property_wohnadresse.trim() !== '') {\n    // DEBUG: Zeige ALLE Felder\n    const allFields = Object.keys(data).filter(k => k.startsWith('property_'));\n    console.log(`\\n=== Kandidat ${data.property_name} ===`);\n    console.log('Alle Felder:', allFields.join(', '));\n    \n    // Finde Distanz-Feld (suche nach \"distanz\" im Feldnamen)\n    let distanzSelect = null;\n    let distanzFieldName = null;\n    \n    for (const key of Object.keys(data)) {\n      if (key.startsWith('property_') && key.toLowerCase().includes('distanz')) {\n        distanzSelect = data[key];\n        distanzFieldName = key;\n        console.log(`→ Distanz-Feld gefunden: ${key} = ${JSON.stringify(distanzSelect)}`);\n        break;\n      }\n    }\n    \n    let maxDistanz = 50; // Default falls nicht gesetzt\n    \n    if (distanzSelect) {\n      const match = String(distanzSelect).match(/\\d+/);\n      if (match) {\n        maxDistanz = parseInt(match[0]);\n      }\n    }\n    \n    console.log(`→ Verwendete Distanz: ${maxDistanz}km\\n`);\n    \n    addressItems.push({\n      json: {\n        id: data.id,\n        name: data.property_name,\n        phone: data.property_handynummer || null,\n        address: data.property_wohnadresse,\n        max_distanz_km: maxDistanz,\n        type: 'kandidat',\n        DEBUG_alle_felder: allFields,\n        DEBUG_distanz_feld: distanzFieldName,\n        DEBUG_distanz_wert: distanzSelect\n      }\n    });\n  }\n  // FACHGESCHÄFT\n  else if (!data.property_geburtsdatum && data.property_adresse && data.property_adresse.trim() !== '') {\n    addressItems.push({\n      json: {\n        id: data.id,\n        name: data.property_name,\n        address: data.property_adresse,\n        type: 'fachgeschaeft'\n      }\n    });\n  }\n}\n\nreturn addressItems;"
+        "jsCode": "const items = $input.all();\nconst addressItems = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // KANDIDAT\n  if (data.property_geburtsdatum && data.property_wohnadresse && data.property_wohnadresse.trim() !== '') {\n    // Finde Distanz-Feld\n    let distanzSelect = null;\n    for (const key of Object.keys(data)) {\n      if (key.startsWith('property_') && key.toLowerCase().includes('distanz')) {\n        distanzSelect = data[key];\n        break;\n      }\n    }\n    \n    let maxDistanz = 50;\n    if (distanzSelect) {\n      const match = String(distanzSelect).match(/\\d+/);\n      if (match) maxDistanz = parseInt(match[0]);\n    }\n    \n    // Koordinaten aus Notion lesen (falls vorhanden)\n    const lat = data.property_latitude || null;\n    const lng = data.property_longitude || null;\n    \n    addressItems.push({\n      json: {\n        id: data.id,\n        name: data.property_name,\n        phone: data.property_handynummer || null,\n        address: data.property_wohnadresse,\n        max_distanz_km: maxDistanz,\n        lat: lat,\n        lng: lng,\n        has_coords: (lat !== null && lng !== null),\n        type: 'kandidat'\n      }\n    });\n  }\n  // FACHGESCHÄFT\n  else if (!data.property_geburtsdatum && data.property_adresse && data.property_adresse.trim() !== '') {\n    const lat = data.property_latitude || null;\n    const lng = data.property_longitude || null;\n    \n    addressItems.push({\n      json: {\n        id: data.id,\n        name: data.property_name,\n        address: data.property_adresse,\n        lat: lat,\n        lng: lng,\n        has_coords: (lat !== null && lng !== null),\n        type: 'fachgeschaeft'\n      }\n    });\n  }\n}\n\nreturn addressItems;"
       },
       "id": "extract-addresses",
-      "name": "📍 Adressen + Distanz extrahieren",
+      "name": "📍 Adressen + Koordinaten extrahieren",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [-64, 64]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.has_coords }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "split-geocoding",
+      "name": "❓ Braucht Geocoding?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [160, 64]
     },
     {
       "parameters": {
@@ -111,17 +148,78 @@
       "name": "🌍 Google Geocoding API",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [160, 64]
+      "position": [384, -48]
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const response = items[i].json;\n  const originalItem = $('📍 Adressen + Distanz extrahieren').all()[i].json;\n  \n  if (response.status === 'OK' && response.results && response.results.length > 0) {\n    const location = response.results[0].geometry.location;\n    results.push({\n      json: {\n        id: originalItem.id,\n        name: originalItem.name,\n        phone: originalItem.phone,\n        address: originalItem.address,\n        max_distanz_km: originalItem.max_distanz_km,\n        type: originalItem.type,\n        lat: location.lat,\n        lng: location.lng,\n        geocoded: true\n      }\n    });\n  } else {\n    results.push({\n      json: {\n        id: originalItem.id,\n        name: originalItem.name,\n        phone: originalItem.phone,\n        address: originalItem.address,\n        max_distanz_km: originalItem.max_distanz_km,\n        type: originalItem.type,\n        geocoded: false\n      }\n    });\n  }\n}\n\nreturn results;"
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const response = items[i].json;\n  const originalItem = $('❓ Braucht Geocoding?').all()[i].json;\n  \n  if (response.status === 'OK' && response.results && response.results.length > 0) {\n    const location = response.results[0].geometry.location;\n    results.push({\n      json: {\n        id: originalItem.id,\n        name: originalItem.name,\n        phone: originalItem.phone,\n        address: originalItem.address,\n        max_distanz_km: originalItem.max_distanz_km,\n        type: originalItem.type,\n        lat: location.lat,\n        lng: location.lng,\n        needs_notion_update: true\n      }\n    });\n  }\n}\n\nreturn results;"
       },
-      "id": "process-coords",
-      "name": "📊 Koordinaten verarbeiten",
+      "id": "process-new-coords",
+      "name": "📊 Neue Koordinaten verarbeiten",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [384, 64]
+      "position": [608, -48]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.notion.com/v1/pages/{{ $json.id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Notion-Version", "value": "2022-06-28" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\"properties\": {\"Latitude\": {\"number\": $json.lat}, \"Longitude\": {\"number\": $json.lng}}}) }}",
+        "options": {}
+      },
+      "id": "save-coords-to-notion",
+      "name": "💾 Koordinaten in Notion speichern",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [832, -48],
+      "credentials": {
+        "notionApi": {
+          "id": "0XxuLBeEBkLiPVOR",
+          "name": "Notion Kandidaten"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Wandle gespeicherte Koordinaten zurück ins Standard-Format\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Extrahiere relevante Daten aus der Notion-Response\n  const savedItem = $('📊 Neue Koordinaten verarbeiten').item(results.length).json;\n  \n  results.push({\n    json: {\n      id: savedItem.id,\n      name: savedItem.name,\n      phone: savedItem.phone,\n      address: savedItem.address,\n      max_distanz_km: savedItem.max_distanz_km,\n      type: savedItem.type,\n      lat: savedItem.lat,\n      lng: savedItem.lng\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "format-saved-coords",
+      "name": "📋 Format anpassen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1056, -48]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Daten von \"bereits hat Koordinaten\" Branch\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  results.push({\n    json: {\n      id: data.id,\n      name: data.name,\n      phone: data.phone,\n      address: data.address,\n      max_distanz_km: data.max_distanz_km,\n      type: data.type,\n      lat: data.lat,\n      lng: data.lng\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "format-existing-coords",
+      "name": "📋 Bereits vorhandene Koordinaten",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [384, 176]
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "merge-coords",
+      "name": "🔗 Koordinaten zusammenführen",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [1280, 64]
     },
     {
       "parameters": {
@@ -129,30 +227,30 @@
         "options": {}
       },
       "id": "collect-all",
-      "name": "🔗 Alle Koordinaten sammeln",
+      "name": "🗂️ Alle Koordinaten sammeln",
       "type": "n8n-nodes-base.aggregate",
       "typeVersion": 1,
-      "position": [608, 64]
+      "position": [1504, 64]
     },
     {
       "parameters": {
-        "jsCode": "const allItems = $input.first().json.data;\n\nconst kandidaten = allItems.filter(item => item.type === 'kandidat' && item.geocoded);\nconst fachgeschaefte = allItems.filter(item => item.type === 'fachgeschaeft' && item.geocoded);\n\nif (kandidaten.length === 0 || fachgeschaefte.length === 0) {\n  return [{ json: { error: 'Keine gültigen Kandidaten oder Fachgeschäfte' } }];\n}\n\nfunction calculateDistance(lat1, lon1, lat2, lon2) {\n  const R = 6371;\n  const dLat = (lat2 - lat1) * Math.PI / 180;\n  const dLon = (lon2 - lon1) * Math.PI / 180;\n  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +\n            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *\n            Math.sin(dLon/2) * Math.sin(dLon/2);\n  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));\n  return R * c;\n}\n\nconst ergebnisse = [];\n\nfor (const kandidat of kandidaten) {\n  // INDIVIDUELLE DISTANZ PRO KANDIDAT!\n  const maxDistanzKm = kandidat.max_distanz_km || 50;\n  \n  console.log(`=== ${kandidat.name}: 0-${maxDistanzKm} km ===`);\n  \n  const naheGeschafte = [];\n  \n  for (const geschaeft of fachgeschaefte) {\n    const distanz = calculateDistance(\n      kandidat.lat, kandidat.lng,\n      geschaeft.lat, geschaeft.lng\n    );\n    const distanzGerundet = Math.round(distanz * 10) / 10;\n    \n    if (distanz <= maxDistanzKm) {\n      naheGeschafte.push({\n        id: geschaeft.id,\n        name: geschaeft.name,\n        distanz: distanzGerundet\n      });\n    }\n  }\n  \n  naheGeschafte.sort((a, b) => a.distanz - b.distanz);\n  \n  if (naheGeschafte.length > 0) {\n    ergebnisse.push({\n      json: {\n        kandidat_id: kandidat.id,\n        kandidat_name: kandidat.name,\n        kandidat_phone: kandidat.phone,\n        fachgeschaefte_ids: naheGeschafte.map(g => g.id),\n        fachgeschaefte_namen: naheGeschafte.map(g => g.name),\n        distanzen_km: naheGeschafte.map(g => g.distanz),\n        anzahl: naheGeschafte.length,\n        naechstes_geschaeft: naheGeschafte[0].name,\n        naechste_distanz_km: naheGeschafte[0].distanz\n      }\n    });\n  }\n}\n\nconsole.log(`${ergebnisse.length} Kandidaten mit Zuordnungen`);\n\nif (ergebnisse.length === 0) {\n  return [{ json: { info: 'Keine Kandidaten im gewählten Distanz-Bereich' } }];\n}\n\nreturn ergebnisse;"
+        "jsCode": "const allItems = $input.first().json.data;\n\nconst kandidaten = allItems.filter(item => item.type === 'kandidat' && item.lat && item.lng);\nconst fachgeschaefte = allItems.filter(item => item.type === 'fachgeschaeft' && item.lat && item.lng);\n\nif (kandidaten.length === 0 || fachgeschaefte.length === 0) {\n  return [{ json: { error: 'Keine gültigen Kandidaten oder Fachgeschäfte' } }];\n}\n\nfunction calculateDistance(lat1, lon1, lat2, lon2) {\n  const R = 6371;\n  const dLat = (lat2 - lat1) * Math.PI / 180;\n  const dLon = (lon2 - lon1) * Math.PI / 180;\n  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +\n            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *\n            Math.sin(dLon/2) * Math.sin(dLon/2);\n  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));\n  return R * c;\n}\n\nconst ergebnisse = [];\n\nfor (const kandidat of kandidaten) {\n  const maxDistanzKm = kandidat.max_distanz_km || 50;\n  \n  const naheGeschafte = [];\n  \n  for (const geschaeft of fachgeschaefte) {\n    const distanz = calculateDistance(\n      kandidat.lat, kandidat.lng,\n      geschaeft.lat, geschaeft.lng\n    );\n    const distanzGerundet = Math.round(distanz * 10) / 10;\n    \n    if (distanz <= maxDistanzKm) {\n      naheGeschafte.push({\n        id: geschaeft.id,\n        name: geschaeft.name,\n        distanz: distanzGerundet\n      });\n    }\n  }\n  \n  naheGeschafte.sort((a, b) => a.distanz - b.distanz);\n  \n  if (naheGeschafte.length > 0) {\n    ergebnisse.push({\n      json: {\n        kandidat_id: kandidat.id,\n        kandidat_name: kandidat.name,\n        kandidat_phone: kandidat.phone,\n        fachgeschaefte_ids: naheGeschafte.map(g => g.id),\n        fachgeschaefte_namen: naheGeschafte.map(g => g.name),\n        distanzen_km: naheGeschafte.map(g => g.distanz),\n        anzahl: naheGeschafte.length,\n        naechstes_geschaeft: naheGeschafte[0].name,\n        naechste_distanz_km: naheGeschafte[0].distanz\n      }\n    });\n  }\n}\n\nif (ergebnisse.length === 0) {\n  return [{ json: { info: 'Keine Kandidaten im gewählten Distanz-Bereich' } }];\n}\n\nreturn ergebnisse;"
       },
       "id": "calculate-matches",
       "name": "🎯 Zuordnung berechnen",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [832, 64]
+      "position": [1728, 64]
     },
     {
       "parameters": {
-        "jsCode": "// Notion Payload vorbereiten\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Skip Error/Info items\n  if (data.error || data.info || !data.fachgeschaefte_namen) {\n    console.log('Skipping item:', data);\n    continue;\n  }\n  \n  // Kommentar-Text erstellen\n  const kommentarLines = data.fachgeschaefte_namen.map((name, i) => \n    `${i+1}. ${name}: ${data.distanzen_km[i]} km`\n  );\n  const kommentarText = 'Zugeordnete Geschäfte:\\n' + kommentarLines.join('\\n');\n  \n  // Notion Payload erstellen\n  const notionPayload = {\n    properties: {\n      'zukünftiger Arbeitgeber': {\n        relation: data.fachgeschaefte_ids.map(id => ({ id }))\n      },\n      'Distanz Wohnort zukünftiger Arbeitgeber': {\n        number: data.naechste_distanz_km\n      },\n      'Kommentar': {\n        rich_text: [{\n          type: 'text',\n          text: {\n            content: kommentarText\n          }\n        }]\n      }\n    }\n  };\n  \n  results.push({\n    json: {\n      kandidat_id: data.kandidat_id,\n      notion_payload: JSON.stringify(notionPayload)\n    }\n  });\n}\n\nreturn results;"
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  if (data.error || data.info || !data.fachgeschaefte_namen) {\n    continue;\n  }\n  \n  const kommentarLines = data.fachgeschaefte_namen.map((name, i) => \n    `${i+1}. ${name}: ${data.distanzen_km[i]} km`\n  );\n  const kommentarText = 'Zugeordnete Geschäfte:\\n' + kommentarLines.join('\\n');\n  \n  const notionPayload = {\n    properties: {\n      'zukünftiger Arbeitgeber': {\n        relation: data.fachgeschaefte_ids.map(id => ({ id }))\n      },\n      'Distanz Wohnort zukünftiger Arbeitgeber': {\n        number: data.naechste_distanz_km\n      },\n      'Kommentar': {\n        rich_text: [{\n          type: 'text',\n          text: {\n            content: kommentarText\n          }\n        }]\n      }\n    }\n  };\n  \n  results.push({\n    json: {\n      kandidat_id: data.kandidat_id,\n      notion_payload: JSON.stringify(notionPayload)\n    }\n  });\n}\n\nreturn results;"
       },
       "id": "prepare-payload",
       "name": "📦 Notion Payload vorbereiten",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1000, 64]
+      "position": [1952, 64]
     },
     {
       "parameters": {
@@ -176,7 +274,7 @@
       "name": "✍️ Notion aktualisieren",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1056, 64],
+      "position": [2176, 64],
       "credentials": {
         "notionApi": {
           "id": "0XxuLBeEBkLiPVOR",
@@ -186,7 +284,7 @@
     }
   ],
   "connections": {
-    "▶️ START": {
+    "⏰ Jede Minute": {
       "main": [[
         { "node": "📋 Kandidaten laden", "type": "main", "index": 0 },
         { "node": "🏪 Fachgeschäfte laden", "type": "main", "index": 0 },
@@ -203,18 +301,36 @@
       "main": [[{ "node": "🔀 Kombination", "type": "main", "index": 1 }]]
     },
     "🔀 Kombination": {
-      "main": [[{ "node": "📍 Adressen + Distanz extrahieren", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "📍 Adressen + Koordinaten extrahieren", "type": "main", "index": 0 }]]
     },
-    "📍 Adressen + Distanz extrahieren": {
-      "main": [[{ "node": "🌍 Google Geocoding API", "type": "main", "index": 0 }]]
+    "📍 Adressen + Koordinaten extrahieren": {
+      "main": [[{ "node": "❓ Braucht Geocoding?", "type": "main", "index": 0 }]]
+    },
+    "❓ Braucht Geocoding?": {
+      "main": [
+        [{ "node": "🌍 Google Geocoding API", "type": "main", "index": 0 }],
+        [{ "node": "📋 Bereits vorhandene Koordinaten", "type": "main", "index": 0 }]
+      ]
     },
     "🌍 Google Geocoding API": {
-      "main": [[{ "node": "📊 Koordinaten verarbeiten", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "📊 Neue Koordinaten verarbeiten", "type": "main", "index": 0 }]]
     },
-    "📊 Koordinaten verarbeiten": {
-      "main": [[{ "node": "🔗 Alle Koordinaten sammeln", "type": "main", "index": 0 }]]
+    "📊 Neue Koordinaten verarbeiten": {
+      "main": [[{ "node": "💾 Koordinaten in Notion speichern", "type": "main", "index": 0 }]]
     },
-    "🔗 Alle Koordinaten sammeln": {
+    "💾 Koordinaten in Notion speichern": {
+      "main": [[{ "node": "📋 Format anpassen", "type": "main", "index": 0 }]]
+    },
+    "📋 Format anpassen": {
+      "main": [[{ "node": "🔗 Koordinaten zusammenführen", "type": "main", "index": 0 }]]
+    },
+    "📋 Bereits vorhandene Koordinaten": {
+      "main": [[{ "node": "🔗 Koordinaten zusammenführen", "type": "main", "index": 1 }]]
+    },
+    "🔗 Koordinaten zusammenführen": {
+      "main": [[{ "node": "🗂️ Alle Koordinaten sammeln", "type": "main", "index": 0 }]]
+    },
+    "🗂️ Alle Koordinaten sammeln": {
       "main": [[{ "node": "🎯 Zuordnung berechnen", "type": "main", "index": 0 }]]
     },
     "🎯 Zuordnung berechnen": {
