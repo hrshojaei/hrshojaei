@@ -162,6 +162,16 @@
     },
     {
       "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  results.push({\n    json: {\n      id: data.id,\n      name: data.name,\n      phone: data.phone,\n      address: data.address,\n      max_distanz_km: data.max_distanz_km,\n      type: data.type,\n      lat: data.lat,\n      lng: data.lng,\n      notion_payload: JSON.stringify({\n        properties: {\n          Latitude: { number: data.lat },\n          Longitude: { number: data.lng }\n        }\n      })\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "prepare-coords-payload",
+      "name": "📝 Koordinaten-Payload vorbereiten",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [832, -48]
+    },
+    {
+      "parameters": {
         "method": "PATCH",
         "url": "=https://api.notion.com/v1/pages/{{ $json.id }}",
         "authentication": "predefinedCredentialType",
@@ -175,14 +185,14 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { properties: { Latitude: { number: $json.lat }, Longitude: { number: $json.lng } } } }}",
+        "jsonBody": "={{ $json.notion_payload }}",
         "options": {}
       },
       "id": "save-coords-to-notion",
       "name": "💾 Koordinaten in Notion speichern",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [832, -48],
+      "position": [1056, -48],
       "credentials": {
         "notionApi": {
           "id": "0XxuLBeEBkLiPVOR",
@@ -192,13 +202,13 @@
     },
     {
       "parameters": {
-        "jsCode": "// Wandle gespeicherte Koordinaten zurück ins Standard-Format\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Extrahiere relevante Daten aus der Notion-Response\n  const savedItem = $('📊 Neue Koordinaten verarbeiten').item(results.length).json;\n  \n  results.push({\n    json: {\n      id: savedItem.id,\n      name: savedItem.name,\n      phone: savedItem.phone,\n      address: savedItem.address,\n      max_distanz_km: savedItem.max_distanz_km,\n      type: savedItem.type,\n      lat: savedItem.lat,\n      lng: savedItem.lng\n    }\n  });\n}\n\nreturn results;"
+        "jsCode": "// Wandle gespeicherte Koordinaten zurück ins Standard-Format\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Extrahiere relevante Daten aus der Notion-Response\n  const savedItem = $('📝 Koordinaten-Payload vorbereiten').item(results.length).json;\n  \n  results.push({\n    json: {\n      id: savedItem.id,\n      name: savedItem.name,\n      phone: savedItem.phone,\n      address: savedItem.address,\n      max_distanz_km: savedItem.max_distanz_km,\n      type: savedItem.type,\n      lat: savedItem.lat,\n      lng: savedItem.lng\n    }\n  });\n}\n\nreturn results;"
       },
       "id": "format-saved-coords",
       "name": "📋 Format anpassen",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1056, -48]
+      "position": [1280, -48]
     },
     {
       "parameters": {
@@ -219,7 +229,7 @@
       "name": "🔗 Koordinaten zusammenführen",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 2.1,
-      "position": [1280, 64]
+      "position": [1504, 64]
     },
     {
       "parameters": {
@@ -230,7 +240,7 @@
       "name": "🗂️ Alle Koordinaten sammeln",
       "type": "n8n-nodes-base.aggregate",
       "typeVersion": 1,
-      "position": [1504, 64]
+      "position": [1728, 64]
     },
     {
       "parameters": {
@@ -240,7 +250,7 @@
       "name": "🎯 Zuordnung berechnen",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1728, 64]
+      "position": [1952, 64]
     },
     {
       "parameters": {
@@ -250,7 +260,7 @@
       "name": "📦 Notion Payload vorbereiten",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1952, 64]
+      "position": [2176, 64]
     },
     {
       "parameters": {
@@ -274,7 +284,7 @@
       "name": "✍️ Notion aktualisieren",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2176, 64],
+      "position": [2400, 64],
       "credentials": {
         "notionApi": {
           "id": "0XxuLBeEBkLiPVOR",
@@ -316,6 +326,9 @@
       "main": [[{ "node": "📊 Neue Koordinaten verarbeiten", "type": "main", "index": 0 }]]
     },
     "📊 Neue Koordinaten verarbeiten": {
+      "main": [[{ "node": "📝 Koordinaten-Payload vorbereiten", "type": "main", "index": 0 }]]
+    },
+    "📝 Koordinaten-Payload vorbereiten": {
       "main": [[{ "node": "💾 Koordinaten in Notion speichern", "type": "main", "index": 0 }]]
     },
     "💾 Koordinaten in Notion speichern": {
