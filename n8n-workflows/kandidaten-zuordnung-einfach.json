@@ -2,11 +2,20 @@
   "name": "Kandidaten-Zuordnung (Einfach)",
   "nodes": [
     {
-      "parameters": {},
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
       "id": "manual-trigger",
-      "name": "START",
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
+      "name": "Jede Minute",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
       "position": [240, 300]
     },
     {
@@ -17,9 +26,6 @@
           "__rl": true,
           "value": "b3f1eeab-2d1a-42f2-a9ba-9792568bc217",
           "mode": "list"
-        },
-        "options": {
-          "limit": 10
         }
       },
       "id": "load-kandidaten",
@@ -147,7 +153,7 @@
     }
   ],
   "connections": {
-    "START": {
+    "Jede Minute": {
       "main": [[
         { "node": "Kandidaten laden", "type": "main", "index": 0 },
         { "node": "Fachgeschäfte laden", "type": "main", "index": 0 }
