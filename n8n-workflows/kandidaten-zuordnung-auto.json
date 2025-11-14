@@ -85,26 +85,19 @@
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": false
-          },
-          "conditions": [
+          "string": [
             {
-              "leftValue": "={{ $json.lat }}",
-              "rightValue": "",
-              "operator": {
-                "type": "object",
-                "operation": "notExists"
-              }
+              "value1": "={{ $json.lat }}",
+              "value2": ""
             }
-          ],
-          "combinator": "or"
-        }
+          ]
+        },
+        "combineOperation": "any"
       },
       "id": "check-coords",
       "name": "Koordinaten fehlen?",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
+      "typeVersion": 1,
       "position": [1120, 300]
     },
     {
