@@ -175,7 +175,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\"properties\": {\"Latitude\": {\"number\": $json.lat}, \"Longitude\": {\"number\": $json.lng}}}) }}",
+        "jsonBody": "={{ { properties: { Latitude: { number: $json.lat }, Longitude: { number: $json.lng } } } }}",
         "options": {}
       },
       "id": "save-coords-to-notion",
