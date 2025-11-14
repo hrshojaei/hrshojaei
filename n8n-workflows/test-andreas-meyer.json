@@ -103,6 +103,35 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.notion.com/v1/pages/{{ $json.kandidat_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Notion-Version", "value": "2022-06-28" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ properties: { 'zukünftiger Arbeitgeber': { relation: $json.shop_ids.map(id => ({id})) }, 'Distanz Wohnort zukünftiger Arbeitgeber': { number: $json.min_dist }, 'Kommentar': { rich_text: [{ text: { content: $json.comment } }] } } }) }}"
+      },
+      "id": "update",
+      "name": "Notion Update",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2000, 300],
+      "credentials": {
+        "notionApi": {
+          "id": "0XxuLBeEBkLiPVOR",
+          "name": "Notion Kandidaten"
+        }
+      }
     }
   ],
   "connections": {
@@ -132,6 +161,9 @@
     },
     "Sammeln": {
       "main": [[{ "node": "Berechnen", "type": "main", "index": 0 }]]
+    },
+    "Berechnen": {
+      "main": [[{ "node": "Notion Update", "type": "main", "index": 0 }]]
     }
   }
 }
