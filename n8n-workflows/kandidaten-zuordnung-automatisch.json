@@ -144,23 +144,13 @@
     },
     {
       "parameters": {
-        "aggregate": "aggregateAllItemData"
-      },
-      "id": "aggregate",
-      "name": "Sammeln",
-      "type": "n8n-nodes-base.aggregate",
-      "typeVersion": 1,
-      "position": [1780, 300]
-    },
-    {
-      "parameters": {
-        "jsCode": "const all = $input.first().json.data;\nconst kandidaten = all.filter(x => x.type === 'kandidat');\nconst shops = all.filter(x => x.type === 'shop');\n\nfunction distance(lat1, lon1, lat2, lon2) {\n  const R = 6371;\n  const dLat = (lat2-lat1) * Math.PI/180;\n  const dLon = (lon2-lon1) * Math.PI/180;\n  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;\n  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));\n}\n\nconst results = [];\n\nfor (const k of kandidaten) {\n  const maxDist = Number(k.max_distanz_km);\n  if (!maxDist || isNaN(maxDist)) continue;\n  if (!k.lat || !k.lng) continue;\n  \n  const nearby = [];\n  \n  for (const s of shops) {\n    if (!s.lat || !s.lng) continue;\n    \n    const d = distance(k.lat, k.lng, s.lat, s.lng);\n    const distKm = Math.round(d*10)/10;\n    \n    if (d <= maxDist) {\n      nearby.push({ id: s.id, name: s.name, dist: distKm });\n    }\n  }\n  \n  nearby.sort((a,b) => a.dist - b.dist);\n  \n  if (nearby.length > 0) {\n    const text = nearby.map((x,i) => `${i+1}. ${x.name}: ${x.dist} km`).join('\\n');\n    \n    results.push({\n      json: {\n        kandidat_name: k.name,\n        kandidat_id: k.id,\n        shop_ids: nearby.map(x => x.id),\n        min_dist: nearby[0].dist,\n        comment: 'Zugeordnete Geschäfte:\\n' + text\n      }\n    });\n  }\n}\n\nreturn results;"
+        "jsCode": "// Hole die ursprünglichen Daten von \"Koordinaten zusammenführen\"\nconst all = $('Koordinaten zusammenführen').all().map(x => x.json);\nconst kandidaten = all.filter(x => x.type === 'kandidat');\nconst shops = all.filter(x => x.type === 'shop');\n\nfunction distance(lat1, lon1, lat2, lon2) {\n  const R = 6371;\n  const dLat = (lat2-lat1) * Math.PI/180;\n  const dLon = (lon2-lon1) * Math.PI/180;\n  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;\n  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));\n}\n\nconst results = [];\n\nfor (const k of kandidaten) {\n  const maxDist = Number(k.max_distanz_km);\n  if (!maxDist || isNaN(maxDist)) continue;\n  if (!k.lat || !k.lng) continue;\n  \n  const nearby = [];\n  \n  for (const s of shops) {\n    if (!s.lat || !s.lng) continue;\n    \n    const d = distance(k.lat, k.lng, s.lat, s.lng);\n    const distKm = Math.round(d*10)/10;\n    \n    if (d <= maxDist) {\n      nearby.push({ id: s.id, name: s.name, dist: distKm });\n    }\n  }\n  \n  nearby.sort((a,b) => a.dist - b.dist);\n  \n  if (nearby.length > 0) {\n    const text = nearby.map((x,i) => `${i+1}. ${x.name}: ${x.dist} km`).join('\\n');\n    \n    results.push({\n      json: {\n        kandidat_name: k.name,\n        kandidat_id: k.id,\n        shop_ids: nearby.map(x => x.id),\n        min_dist: nearby[0].dist,\n        comment: 'Zugeordnete Geschäfte:\\n' + text\n      }\n    });\n  }\n}\n\nreturn results;"
       },
       "id": "calculate",
       "name": "Berechnen",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 300]
+      "position": [1780, 300]
     },
     {
       "parameters": {
@@ -218,9 +208,6 @@
       "main": [[{ "node": "Koordinaten in Notion speichern", "type": "main", "index": 0 }]]
     },
     "Koordinaten in Notion speichern": {
-      "main": [[{ "node": "Sammeln", "type": "main", "index": 0 }]]
-    },
-    "Sammeln": {
       "main": [[{ "node": "Berechnen", "type": "main", "index": 0 }]]
     },
     "Berechnen": {
