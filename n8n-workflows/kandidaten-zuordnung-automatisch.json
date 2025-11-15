@@ -74,7 +74,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Kandidat\n  if (data.property_geburtsdatum) {\n    let maxDistanz = 50;\n    let debug_found_field = 'NICHT GEFUNDEN';\n    let debug_found_value = null;\n    \n    // Suche speziell nach dem Feld 'gewünschte distanz'\n    for (const key of Object.keys(data)) {\n      if (key.toLowerCase().includes('gew') && key.toLowerCase().includes('nschte')) {\n        debug_found_field = key;\n        debug_found_value = data[key];\n        const match = String(data[key]).match(/\\d+/);\n        if (match) {\n          maxDistanz = parseInt(match[0]);\n          break;\n        }\n      }\n    }\n    \n    results.push({\n      json: {\n        id: data.id,\n        name: data.property_name,\n        address: data.property_wohnadresse,\n        lat: data.property_latitude,\n        lng: data.property_longitude,\n        max_distanz_km: maxDistanz,\n        debug_field: debug_found_field,\n        debug_value: debug_found_value,\n        type: 'kandidat',\n        has_coords: (data.property_latitude !== null && data.property_latitude !== undefined && data.property_longitude !== null && data.property_longitude !== undefined)\n      }\n    });\n  }\n  // Fachgeschäft\n  else if (data.property_adresse) {\n    results.push({\n      json: {\n        id: data.id,\n        name: data.property_name,\n        address: data.property_adresse,\n        lat: data.property_latitude,\n        lng: data.property_longitude,\n        type: 'shop',\n        has_coords: (data.property_latitude !== null && data.property_latitude !== undefined && data.property_longitude !== null && data.property_longitude !== undefined)\n      }\n    });\n  }\n}\n\nreturn results;"
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Kandidat\n  if (data.property_geburtsdatum) {\n    let maxDistanz = 50;\n    \n    for (const key of Object.keys(data)) {\n      if (key.toLowerCase().includes('gew') && key.toLowerCase().includes('nschte')) {\n        const match = String(data[key]).match(/\\d+/);\n        if (match) {\n          maxDistanz = parseInt(match[0]);\n          break;\n        }\n      }\n    }\n    \n    // Prüfe ob Koordinaten vorhanden sind\n    const hasCoords = (data.property_latitude !== null && data.property_latitude !== undefined && \n                       data.property_longitude !== null && data.property_longitude !== undefined);\n    \n    results.push({\n      json: {\n        id: data.id,\n        name: data.property_name,\n        address: data.property_wohnadresse,\n        lat: data.property_latitude,\n        lng: data.property_longitude,\n        max_distanz_km: maxDistanz,\n        type: 'kandidat',\n        needs_geocoding: !hasCoords\n      }\n    });\n  }\n  // Fachgeschäft\n  else if (data.property_adresse) {\n    const hasCoords = (data.property_latitude !== null && data.property_latitude !== undefined && \n                       data.property_longitude !== null && data.property_longitude !== undefined);\n    \n    results.push({\n      json: {\n        id: data.id,\n        name: data.property_name,\n        address: data.property_adresse,\n        lat: data.property_latitude,\n        lng: data.property_longitude,\n        type: 'shop',\n        needs_geocoding: !hasCoords\n      }\n    });\n  }\n}\n\nreturn results;"
       },
       "id": "extract",
       "name": "Adressen extrahieren",
@@ -84,13 +84,63 @@
     },
     {
       "parameters": {
-        "jsCode": "// Kombinierter Geocoding + Cache Handler\nconst items = $input.all();\nconst results = [];\nconst toSave = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Hat bereits Koordinaten - Cache verwenden\n  if (data.has_coords && data.lat && data.lng) {\n    results.push(item);\n    continue;\n  }\n  \n  // Braucht Geocoding\n  try {\n    const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(data.address)}&key=AIzaSyB_s5jbJR1VBCXP_bPe84DgtDTT6wulaIc`);\n    const geo = await response.json();\n    \n    if (geo.status === 'OK' && geo.results[0]) {\n      const loc = geo.results[0].geometry.location;\n      \n      // Koordinaten zum Item hinzufügen\n      const newItem = {\n        json: {\n          ...data,\n          lat: loc.lat,\n          lng: loc.lng,\n          has_coords: true\n        }\n      };\n      \n      results.push(newItem);\n      \n      // Markieren zum Speichern in Notion\n      toSave.push({\n        id: data.id,\n        lat: loc.lat,\n        lng: loc.lng\n      });\n    }\n  } catch (error) {\n    // Bei Fehler: Item ohne Koordinaten durchlassen\n    results.push(item);\n  }\n}\n\n// Koordinaten in Notion speichern\nfor (const save of toSave) {\n  try {\n    await fetch(`https://api.notion.com/v1/pages/${save.id}`, {\n      method: 'PATCH',\n      headers: {\n        'Authorization': 'Bearer ntn_U25383296342JvfPTKO32BPxyT6cbVAL3e3AJnFuXUX3tI',\n        'Notion-Version': '2022-06-28',\n        'Content-Type': 'application/json'\n      },\n      body: JSON.stringify({\n        properties: {\n          'Latitude': { number: save.lat },\n          'Longitude': { number: save.lng }\n        }\n      })\n    });\n  } catch (error) {\n    // Fehler beim Speichern ignorieren - Koordinaten sind trotzdem im Workflow verfügbar\n  }\n}\n\nreturn results;"
+        "url": "=https://maps.googleapis.com/maps/api/geocode/json?address={{ encodeURIComponent($json.address) }}&key=AIzaSyB_s5jbJR1VBCXP_bPe84DgtDTT6wulaIc",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
       },
-      "id": "geocode-with-cache",
-      "name": "Geocoding mit Cache",
+      "id": "geocode",
+      "name": "Geocoding (nur wenn nötig)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300],
+      "continueOnFail": true,
+      "executeOnce": false,
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const current = items[i].json;\n  const original = $('Adressen extrahieren').all()[i].json;\n  \n  let finalLat = original.lat;\n  let finalLng = original.lng;\n  let needsSave = false;\n  \n  // Wenn Geocoding erfolgte und erfolgreich war\n  if (original.needs_geocoding && current.status === 'OK' && current.results && current.results[0]) {\n    const loc = current.results[0].geometry.location;\n    finalLat = loc.lat;\n    finalLng = loc.lng;\n    needsSave = true;\n  }\n  \n  results.push({\n    json: {\n      ...original,\n      lat: finalLat,\n      lng: finalLng,\n      needs_save: needsSave\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "process-coords",
+      "name": "Koordinaten zusammenführen",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 300]
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.notion.com/v1/pages/{{ $json.id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "notionApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Notion-Version", "value": "2022-06-28" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ properties: { 'Latitude': { number: $json.lat }, 'Longitude': { number: $json.lng } } }) }}",
+        "options": {}
+      },
+      "id": "save-coords",
+      "name": "Koordinaten in Notion speichern",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 300],
+      "continueOnFail": true,
+      "executeOnce": false,
+      "credentials": {
+        "notionApi": {
+          "id": "0XxuLBeEBkLiPVOR",
+          "name": "Notion Kandidaten"
+        }
+      }
     },
     {
       "parameters": {
@@ -100,17 +150,17 @@
       "name": "Sammeln",
       "type": "n8n-nodes-base.aggregate",
       "typeVersion": 1,
-      "position": [1340, 300]
+      "position": [1780, 300]
     },
     {
       "parameters": {
-        "jsCode": "const all = $input.first().json.data;\nconst kandidaten = all.filter(x => x.type === 'kandidat');\nconst shops = all.filter(x => x.type === 'shop');\n\nfunction distance(lat1, lon1, lat2, lon2) {\n  const R = 6371;\n  const dLat = (lat2-lat1) * Math.PI/180;\n  const dLon = (lon2-lon1) * Math.PI/180;\n  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;\n  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));\n}\n\nconst results = [];\n\nfor (const k of kandidaten) {\n  // Sicherstellen dass max_distanz_km ein valider Wert ist\n  const maxDist = Number(k.max_distanz_km);\n  if (!maxDist || isNaN(maxDist)) continue;\n  \n  // Koordinaten prüfen\n  if (!k.lat || !k.lng) continue;\n  \n  const nearby = [];\n  \n  for (const s of shops) {\n    if (!s.lat || !s.lng) continue;\n    \n    const d = distance(k.lat, k.lng, s.lat, s.lng);\n    const distKm = Math.round(d*10)/10;\n    \n    // Expliziter Vergleich mit Nummer\n    if (d <= maxDist) {\n      nearby.push({ id: s.id, name: s.name, dist: distKm });\n    }\n  }\n  \n  nearby.sort((a,b) => a.dist - b.dist);\n  \n  if (nearby.length > 0) {\n    const text = nearby.map((x,i) => `${i+1}. ${x.name}: ${x.dist} km`).join('\\n');\n    \n    results.push({\n      json: {\n        kandidat_name: k.name,\n        kandidat_id: k.id,\n        shop_ids: nearby.map(x => x.id),\n        min_dist: nearby[0].dist,\n        comment: 'Zugeordnete Geschäfte:\\n' + text\n      }\n    });\n  }\n}\n\nreturn results;"
+        "jsCode": "const all = $input.first().json.data;\nconst kandidaten = all.filter(x => x.type === 'kandidat');\nconst shops = all.filter(x => x.type === 'shop');\n\nfunction distance(lat1, lon1, lat2, lon2) {\n  const R = 6371;\n  const dLat = (lat2-lat1) * Math.PI/180;\n  const dLon = (lon2-lon1) * Math.PI/180;\n  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;\n  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));\n}\n\nconst results = [];\n\nfor (const k of kandidaten) {\n  const maxDist = Number(k.max_distanz_km);\n  if (!maxDist || isNaN(maxDist)) continue;\n  if (!k.lat || !k.lng) continue;\n  \n  const nearby = [];\n  \n  for (const s of shops) {\n    if (!s.lat || !s.lng) continue;\n    \n    const d = distance(k.lat, k.lng, s.lat, s.lng);\n    const distKm = Math.round(d*10)/10;\n    \n    if (d <= maxDist) {\n      nearby.push({ id: s.id, name: s.name, dist: distKm });\n    }\n  }\n  \n  nearby.sort((a,b) => a.dist - b.dist);\n  \n  if (nearby.length > 0) {\n    const text = nearby.map((x,i) => `${i+1}. ${x.name}: ${x.dist} km`).join('\\n');\n    \n    results.push({\n      json: {\n        kandidat_name: k.name,\n        kandidat_id: k.id,\n        shop_ids: nearby.map(x => x.id),\n        min_dist: nearby[0].dist,\n        comment: 'Zugeordnete Geschäfte:\\n' + text\n      }\n    });\n  }\n}\n\nreturn results;"
       },
       "id": "calculate",
       "name": "Berechnen",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1560, 300]
+      "position": [2000, 300]
     },
     {
       "parameters": {
@@ -132,8 +182,8 @@
       "id": "update",
       "name": "Notion Update",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [1780, 300],
+      "typeVersion": 4.2,
+      "position": [2220, 300],
       "credentials": {
         "notionApi": {
           "id": "0XxuLBeEBkLiPVOR",
@@ -159,9 +209,15 @@
       "main": [[{ "node": "Adressen extrahieren", "type": "main", "index": 0 }]]
     },
     "Adressen extrahieren": {
-      "main": [[{ "node": "Geocoding mit Cache", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Geocoding (nur wenn nötig)", "type": "main", "index": 0 }]]
     },
-    "Geocoding mit Cache": {
+    "Geocoding (nur wenn nötig)": {
+      "main": [[{ "node": "Koordinaten zusammenführen", "type": "main", "index": 0 }]]
+    },
+    "Koordinaten zusammenführen": {
+      "main": [[{ "node": "Koordinaten in Notion speichern", "type": "main", "index": 0 }]]
+    },
+    "Koordinaten in Notion speichern": {
       "main": [[{ "node": "Sammeln", "type": "main", "index": 0 }]]
     },
     "Sammeln": {
