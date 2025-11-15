@@ -1,0 +1,152 @@
+{
+  "name": "DEBUG - Distanz-Check",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start",
+      "name": "START",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "b3f1eeab-2d1a-42f2-a9ba-9792568bc217",
+          "mode": "list"
+        },
+        "options": {
+          "limit": 1
+        }
+      },
+      "id": "load-kandidaten",
+      "name": "1 Kandidat laden",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [460, 200],
+      "credentials": {
+        "notionApi": {
+          "id": "0XxuLBeEBkLiPVOR",
+          "name": "Notion Kandidaten"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "c6d33fd3-0f92-4e6d-87fe-4cb9fdb2c2aa",
+          "mode": "list"
+        },
+        "options": {
+          "limit": 3
+        }
+      },
+      "id": "load-shops",
+      "name": "3 Shops laden",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [460, 400],
+      "credentials": {
+        "notionApi": {
+          "id": "0XxuLBeEBkLiPVOR",
+          "name": "Notion Kandidaten"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "merge",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Kandidat\n  if (data.property_geburtsdatum) {\n    let maxDistanz = 50;\n    let foundField = 'nicht gefunden';\n    \n    for (const key of Object.keys(data)) {\n      if (key.toLowerCase().includes('distanz')) {\n        foundField = key + ' = ' + data[key];\n        const match = String(data[key]).match(/\\d+/);\n        if (match) maxDistanz = parseInt(match[0]);\n        break;\n      }\n    }\n    \n    results.push({\n      json: {\n        id: data.id,\n        name: data.property_name,\n        address: data.property_wohnadresse,\n        max_distanz_km: maxDistanz,\n        debug_field: foundField,\n        type: 'kandidat'\n      }\n    });\n  }\n  // Fachgeschäft\n  else if (data.property_adresse) {\n    results.push({\n      json: {\n        id: data.id,\n        name: data.property_name,\n        address: data.property_adresse,\n        type: 'shop'\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "id": "extract",
+      "name": "DEBUG Extrahieren",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://maps.googleapis.com/maps/api/geocode/json?address={{ encodeURIComponent($json.address) }}&key=AIzaSyB_s5jbJR1VBCXP_bPe84DgtDTT6wulaIc"
+      },
+      "id": "geocode",
+      "name": "Geocoding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const geo = items[i].json;\n  const orig = $('DEBUG Extrahieren').all()[i].json;\n  \n  if (geo.status === 'OK' && geo.results[0]) {\n    const loc = geo.results[0].geometry.location;\n    results.push({\n      json: {\n        ...orig,\n        lat: loc.lat,\n        lng: loc.lng\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "id": "process",
+      "name": "Koordinaten",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData"
+      },
+      "id": "aggregate",
+      "name": "Sammeln",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const all = $input.first().json.data;\nconst kandidaten = all.filter(x => x.type === 'kandidat');\nconst shops = all.filter(x => x.type === 'shop');\n\nfunction distance(lat1, lon1, lat2, lon2) {\n  const R = 6371;\n  const dLat = (lat2-lat1) * Math.PI/180;\n  const dLon = (lon2-lon1) * Math.PI/180;\n  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;\n  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));\n}\n\nconst results = [];\n\nfor (const k of kandidaten) {\n  const allShops = [];\n  \n  for (const s of shops) {\n    const d = distance(k.lat, k.lng, s.lat, s.lng);\n    const dist = Math.round(d*10)/10;\n    allShops.push({\n      name: s.name,\n      dist: dist,\n      max_erlaubt: k.max_distanz_km,\n      passt: d <= k.max_distanz_km ? 'JA' : 'NEIN'\n    });\n  }\n  \n  results.push({\n    json: {\n      kandidat: k.name,\n      max_distanz_km: k.max_distanz_km,\n      debug_field: k.debug_field,\n      alle_shops: allShops\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "debug",
+      "name": "DEBUG Berechnung",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 300]
+    }
+  ],
+  "connections": {
+    "START": {
+      "main": [[
+        { "node": "1 Kandidat laden", "type": "main", "index": 0 },
+        { "node": "3 Shops laden", "type": "main", "index": 0 }
+      ]]
+    },
+    "1 Kandidat laden": {
+      "main": [[{ "node": "Merge", "type": "main", "index": 0 }]]
+    },
+    "3 Shops laden": {
+      "main": [[{ "node": "Merge", "type": "main", "index": 1 }]]
+    },
+    "Merge": {
+      "main": [[{ "node": "DEBUG Extrahieren", "type": "main", "index": 0 }]]
+    },
+    "DEBUG Extrahieren": {
+      "main": [[{ "node": "Geocoding", "type": "main", "index": 0 }]]
+    },
+    "Geocoding": {
+      "main": [[{ "node": "Koordinaten", "type": "main", "index": 0 }]]
+    },
+    "Koordinaten": {
+      "main": [[{ "node": "Sammeln", "type": "main", "index": 0 }]]
+    },
+    "Sammeln": {
+      "main": [[{ "node": "DEBUG Berechnung", "type": "main", "index": 0 }]]
+    }
+  }
+}
