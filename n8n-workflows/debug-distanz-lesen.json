@@ -1,0 +1,53 @@
+{
+  "name": "DEBUG - Nur Distanz lesen",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start",
+      "name": "START",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "b3f1eeab-2d1a-42f2-a9ba-9792568bc217",
+          "mode": "list"
+        }
+      },
+      "id": "load-kandidaten",
+      "name": "Kandidaten laden",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "credentials": {
+        "notionApi": {
+          "id": "0XxuLBeEBkLiPVOR",
+          "name": "Notion Kandidaten"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  let maxDistanz = 50;\n  let foundField = 'NICHT GEFUNDEN';\n  let allFields = [];\n  \n  // Alle property_ Felder anzeigen\n  for (const key of Object.keys(data)) {\n    if (key.startsWith('property_')) {\n      allFields.push(key + ': ' + data[key]);\n    }\n    \n    if (key.toLowerCase().includes('distanz')) {\n      foundField = key + ' = ' + data[key];\n      const match = String(data[key]).match(/\\d+/);\n      if (match) {\n        maxDistanz = parseInt(match[0]);\n      }\n    }\n  }\n  \n  results.push({\n    json: {\n      name: data.property_name,\n      max_distanz_km: maxDistanz,\n      found_field: foundField,\n      all_fields: allFields.join(' | ')\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "check",
+      "name": "Distanz-Felder prüfen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "START": {
+      "main": [[{ "node": "Kandidaten laden", "type": "main", "index": 0 }]]
+    },
+    "Kandidaten laden": {
+      "main": [[{ "node": "Distanz-Felder prüfen", "type": "main", "index": 0 }]]
+    }
+  }
+}
