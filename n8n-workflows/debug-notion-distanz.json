@@ -1,0 +1,56 @@
+{
+  "name": "DEBUG - Notion Distanz lesen",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start",
+      "name": "START",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "b3f1eeab-2d1a-42f2-a9ba-9792568bc217",
+          "mode": "list"
+        },
+        "options": {
+          "limit": 5
+        }
+      },
+      "id": "load-kandidaten",
+      "name": "5 Kandidaten",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "credentials": {
+        "notionApi": {
+          "id": "0XxuLBeEBkLiPVOR",
+          "name": "Notion Kandidaten"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  let maxDistanz = 50;\n  let foundField = null;\n  let foundValue = null;\n  const distanzFields = [];\n  \n  // Suche ALLE Felder die 'distanz' enthalten\n  for (const key of Object.keys(data)) {\n    if (key.toLowerCase().includes('distanz')) {\n      distanzFields.push({\n        feld: key,\n        wert: data[key],\n        typ: typeof data[key]\n      });\n      \n      if (!foundField) {\n        foundField = key;\n        foundValue = data[key];\n        const match = String(data[key]).match(/\\d+/);\n        if (match) maxDistanz = parseInt(match[0]);\n      }\n    }\n  }\n  \n  results.push({\n    json: {\n      name: data.property_name || 'Unbekannt',\n      gefundene_distanz: maxDistanz,\n      gefundenes_feld: foundField || 'KEIN FELD GEFUNDEN',\n      gefundener_wert: foundValue,\n      alle_distanz_felder: distanzFields\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "check",
+      "name": "Distanz prüfen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "START": {
+      "main": [[{ "node": "5 Kandidaten", "type": "main", "index": 0 }]]
+    },
+    "5 Kandidaten": {
+      "main": [[{ "node": "Distanz prüfen", "type": "main", "index": 0 }]]
+    }
+  }
+}
