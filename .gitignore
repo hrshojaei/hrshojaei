@@ -86,3 +86,12 @@ Thumbs.db
 candidates.csv
 recordings/
 .env.sipgate
+
+# Document Sorting System
+credentials.json
+token.json
+temp/
+*.pdf
+*.jpg
+*.jpeg
+*.png

@@ -67,6 +67,16 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_to_file: bool = True
 
+    # Document Sorting (new feature)
+    telegram_bot_token: Optional[str] = None
+    google_drive_credentials_path: str = "credentials.json"
+    google_drive_token_path: str = "token.json"
+    google_drive_inbox_folder_id: Optional[str] = None
+    use_cloud_vision_ocr: bool = False  # False = Tesseract (kostenlos), True = Google Cloud Vision
+    convert_images_to_pdf: bool = True
+    document_polling_interval_minutes: int = 15
+    document_base_folder_name: str = "Sortierte Dokumente"
+
     def validate_api_keys(self) -> bool:
         """Validate that required API keys are present"""
         # Validate AI provider
@@ -92,3 +102,8 @@ class Settings(BaseSettings):
 
 # Global settings instance
 settings = Settings()
+
+
+def get_settings() -> Settings:
+    """Get the global settings instance"""
+    return settings
