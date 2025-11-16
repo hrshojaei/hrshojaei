@@ -181,3 +181,62 @@ Bei Fragen oder Problemen, erstelle bitte ein Issue im Repository.
 ## Lizenz
 
 [Deine gewählte Lizenz]
+
+---
+
+# 🗂️ Document Sorting System (NEU!)
+
+Zusätzlich zum Recruiting Agent bietet dieses Repository jetzt auch ein **KI-gestütztes Dokumentensortierungs-System**.
+
+## Features
+
+- 📱 **Telegram Bot** - Sende Dokumente per Telegram
+- 🔍 **OCR** - Automatische Texterkennung (Tesseract/Google Cloud Vision)
+- 🤖 **KI-Klassifizierung** - Claude AI sortiert intelligent nach Inhalt
+- ☁️ **Google Drive** - Automatische Organisation in Ordnerstruktur
+- 📄 **PDF-Konvertierung** - Bilder werden automatisch zu PDFs
+- ⏰ **Auto-Polling** - Überwacht Google Drive alle 15 Minuten
+
+## 🐳 Quick-Start mit Docker (Empfohlen)
+
+```bash
+# 1. Repository clonen
+git clone https://github.com/hrshojaei/hrshojaei.git
+cd hrshojaei
+
+# 2. Docker-Start-Script ausführen
+bash scripts/docker-start.sh
+
+# 3. .env konfigurieren wenn nötig
+# 4. Fertig! System läuft 24/7
+```
+
+## 📖 Dokumentation
+
+- **Docker Quick-Start**: [DOCKER_QUICKSTART.md](DOCKER_QUICKSTART.md) - Start in 5 Minuten
+- **Docker Deployment**: [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) - Vollständige Anleitung
+- **Benutzerhandbuch**: [DOCUMENT_SORTING.md](DOCUMENT_SORTING.md) - Features & Nutzung
+- **Tests**: [tests/README.md](tests/README.md) - Schritt-für-Schritt Tests
+
+## Schnellübersicht
+
+| Methode | Schwierigkeit | Zeit | Empfohlen für |
+|---------|---------------|------|---------------|
+| **Docker** | ⭐ Sehr einfach | 5 Min | Alle Nutzer |
+| Manuell | ⭐⭐⭐ Mittel | 20 Min | Entwickler |
+
+## Beispiel-Workflow
+
+1. Sende Rechnung als Foto per Telegram
+2. System erkennt Text via OCR
+3. Claude AI klassifiziert: "Rechnung, Telekom, 15.01.2024"
+4. Erstellt: `Google Drive/Sortierte Dokumente/Finanzen/Rechnungen/2024-01-15_Rechnung_Telekom.pdf`
+
+**→ Vollautomatisch sortierte Dokumente!** 🎉
+
+## Support
+
+Bei Fragen zum Document Sorting System:
+- Siehe [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) für Troubleshooting
+- Tests: `bash tests/run_all_tests.sh`
+- Issues: https://github.com/hrshojaei/hrshojaei/issues

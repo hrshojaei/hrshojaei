@@ -1,0 +1,83 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Datenbanken
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Temp
+temp/
+tmp/
+*.tmp
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Credentials (werden via Volumes gemountet)
+credentials.json
+token.json
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Documentation (nicht nötig im Container)
+*.md
+!README.md
+docs/
+
+# Recordings
+recordings/
+
+# CSV
+*.csv
+
+# Images (Test-Dateien)
+*.pdf
+*.jpg
+*.jpeg
+*.png
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# CI/CD
+.github/
+
+# Scripts (außer die, die im Image sein sollen)
+scripts/setup.sh
+scripts/import_candidates.py

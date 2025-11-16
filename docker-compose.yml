@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  document-sorter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: document-sorter:latest
+    container_name: document-sorter
+    restart: unless-stopped
+
+    # Umgebungsvariablen aus .env laden
+    env_file:
+      - .env
+
+    # Volumes für persistente Daten
+    volumes:
+      # Logs persistent speichern
+      - ./logs:/app/logs
+      # Datenbank persistent speichern
+      - ./data:/app/data
+      # Google Drive Credentials
+      - ./credentials.json:/app/credentials.json:ro
+      - ./token.json:/app/token.json
+      # Temporäre Dateien (optional)
+      - ./temp:/app/temp
+
+    # Netzwerk
+    networks:
+      - document-sorter-network
+
+    # Resource Limits (anpassen nach Bedarf)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Command überschreiben (optional)
+    # command: python3 document_sorter_main.py --mode bot
+
+    # Health Check
+    healthcheck:
+      test: ["CMD", "python3", "-c", "from src.config import get_settings; get_settings()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  document-sorter-network:
+    driver: bridge
+
+# Optional: Volumes explizit definieren
+volumes:
+  logs:
+    driver: local
+  data:
+    driver: local
