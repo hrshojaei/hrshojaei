@@ -31,10 +31,11 @@ class Settings(BaseSettings):
     sipgate_device_id: Optional[str] = None  # Device ID (e.g. 'y0') - auto-detected if not provided
 
     # AI Provider
-    ai_provider: str = "anthropic"  # "anthropic" or "openai"
+    ai_provider: str = "anthropic"  # "anthropic", "openai", or "perplexity"
     anthropic_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None
     openai_model: str = "gpt-4-turbo-preview"
+    openai_base_url: Optional[str] = None  # For Perplexity: https://api.perplexity.ai
 
     # Speech Services
     deepgram_api_key: Optional[str] = None

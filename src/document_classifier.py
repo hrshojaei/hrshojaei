@@ -8,7 +8,6 @@ from datetime import datetime
 import json
 import re
 from loguru import logger
-from anthropic import Anthropic
 
 from src.config import get_settings
 
@@ -16,23 +15,42 @@ from src.config import get_settings
 class DocumentClassifier:
     """KI-basierter Klassifizierer für Dokumente."""
 
-    def __init__(self, anthropic_api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None):
         """
         Initialisiert den Classifier.
 
         Args:
-            anthropic_api_key: Anthropic API Key (optional, sonst aus Settings)
+            api_key: API Key (optional, sonst aus Settings)
         """
         settings = get_settings()
-        api_key = anthropic_api_key or settings.anthropic_api_key
+        self.provider = settings.ai_provider
 
-        if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY nicht gesetzt!")
+        if self.provider == "anthropic":
+            from anthropic import Anthropic
+            api_key = api_key or settings.anthropic_api_key
+            if not api_key:
+                raise ValueError("ANTHROPIC_API_KEY nicht gesetzt!")
+            self.client = Anthropic(api_key=api_key)
+            self.model = "claude-3-5-sonnet-20241022"
 
-        self.client = Anthropic(api_key=api_key)
-        self.model = "claude-3-5-sonnet-20241022"
+        elif self.provider in ["openai", "perplexity"]:
+            from openai import OpenAI
+            api_key = api_key or settings.openai_api_key
+            if not api_key:
+                raise ValueError("OPENAI_API_KEY nicht gesetzt!")
 
-        logger.info("Document Classifier initialisiert")
+            # Perplexity uses OpenAI-compatible API
+            if self.provider == "perplexity":
+                base_url = settings.openai_base_url or "https://api.perplexity.ai"
+                self.client = OpenAI(api_key=api_key, base_url=base_url)
+                self.model = settings.openai_model or "llama-3.1-sonar-large-128k-online"
+            else:
+                self.client = OpenAI(api_key=api_key)
+                self.model = settings.openai_model or "gpt-4-turbo-preview"
+        else:
+            raise ValueError(f"Unbekannter AI_PROVIDER: {self.provider}")
+
+        logger.info(f"Document Classifier initialisiert ({self.provider})")
 
     def classify_document(self, text: str, filename: Optional[str] = None) -> Dict:
         """
@@ -96,20 +114,32 @@ Text:
 Antworte NUR mit dem JSON-Objekt, ohne zusätzlichen Text."""
 
         try:
-            # Claude API Call
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=1024,
-                temperature=0.3,
-                system=system_prompt,
-                messages=[
-                    {"role": "user", "content": user_prompt}
-                ]
-            )
+            # API Call basierend auf Provider
+            if self.provider == "anthropic":
+                response = self.client.messages.create(
+                    model=self.model,
+                    max_tokens=1024,
+                    temperature=0.3,
+                    system=system_prompt,
+                    messages=[
+                        {"role": "user", "content": user_prompt}
+                    ]
+                )
+                response_text = response.content[0].text
 
-            # Response parsen
-            response_text = response.content[0].text
-            logger.debug(f"Claude Response: {response_text}")
+            elif self.provider in ["openai", "perplexity"]:
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    max_tokens=1024,
+                    temperature=0.3,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ]
+                )
+                response_text = response.choices[0].message.content
+
+            logger.debug(f"AI Response: {response_text}")
 
             # JSON extrahieren
             result = self._parse_json_response(response_text)
@@ -270,9 +300,9 @@ def create_classifier(api_key: Optional[str] = None) -> DocumentClassifier:
     Factory-Funktion zum Erstellen eines Classifiers.
 
     Args:
-        api_key: Anthropic API Key (optional)
+        api_key: API Key (optional)
 
     Returns:
         DocumentClassifier Instanz
     """
-    return DocumentClassifier(anthropic_api_key=api_key)
+    return DocumentClassifier(api_key=api_key)
