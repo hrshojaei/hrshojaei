@@ -1,0 +1,95 @@
+{
+  "name": "Kandidaten Backup (Google Drive)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24,
+              "triggerAtHour": 2
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Täglich um 2:00 Uhr",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "b3f1eeab-2d1a-42f2-a9ba-9792568bc217",
+          "mode": "list"
+        }
+      },
+      "id": "load-kandidaten",
+      "name": "Kandidaten laden",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "credentials": {
+        "notionApi": {
+          "id": "0XxuLBeEBkLiPVOR",
+          "name": "Notion Kandidaten"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst now = new Date();\nconst dateStr = now.toISOString().split('T')[0];\n\nconst csvRows = [];\n\n// CSV Header\ncsvRows.push('Name,Geburtsdatum,Wohnadresse,Telefon,Email,Aktuelle Position,Abschlussjahr,Gewünschte Distanz,Zuordnungs-Status,Latitude,Longitude,Zukünftige Arbeitgeber,Distanzen,Kommentar');\n\n// CSV Rows\nfor (const item of items) {\n  const data = item.json;\n  \n  const name = (data.property_name || '').replace(/\"/g, '\"\"');\n  const geburtsdatum = data.property_geburtsdatum || '';\n  const adresse = (data.property_wohnadresse || '').replace(/\"/g, '\"\"');\n  const telefon = data.property_handynummer || '';\n  const email = data.property_email || '';\n  const position = (data.property_aktuelle_position || '').replace(/\"/g, '\"\"');\n  const jahr = data.property_abschlussjahr || '';\n  const distanz = data.property_gew_nschte_distanz || '';\n  const status = data.property_zuordnungs_status || '';\n  const lat = data.property_latitude || '';\n  const lng = data.property_longitude || '';\n  \n  // Zukünftige Arbeitgeber\n  const shops = data.property_zuk_nftiger_arbeitgeber || [];\n  const shopNames = shops.map(s => s.id).join('; ');\n  \n  const distanzen = (data.property_distanz_wohnort_zuk_nftiger_arbeitgeber || '').replace(/\"/g, '\"\"').replace(/\\n/g, '; ');\n  const kommentar = (data.property_kommentar || '').replace(/\"/g, '\"\"').replace(/\\n/g, '; ');\n  \n  csvRows.push(`\"${name}\",\"${geburtsdatum}\",\"${adresse}\",\"${telefon}\",\"${email}\",\"${position}\",\"${jahr}\",\"${distanz}\",\"${status}\",\"${lat}\",\"${lng}\",\"${shopNames}\",\"${distanzen}\",\"${kommentar}\"`);\n}\n\nconst csvContent = csvRows.join('\\n');\n\nreturn [{\n  json: {\n    fileName: `kandidaten-backup-${dateStr}.csv`,\n    fileContent: csvContent,\n    backupDate: dateStr,\n    totalKandidaten: items.length\n  },\n  binary: {\n    data: {\n      data: Buffer.from(csvContent, 'utf-8').toString('base64'),\n      mimeType: 'text/csv',\n      fileName: `kandidaten-backup-${dateStr}.csv`\n    }\n  }\n}];"
+      },
+      "id": "create-csv",
+      "name": "CSV erstellen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "fileContent": "={{ $binary.data }}",
+        "name": "={{ $json.fileName }}",
+        "driveId": {
+          "__rl": true,
+          "value": "root",
+          "mode": "list"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "root",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "id": "upload-to-drive",
+      "name": "In Google Drive speichern",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [900, 300],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "GOOGLE_DRIVE_CREDENTIALS_ID",
+          "name": "Google Drive Konto"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Täglich um 2:00 Uhr": {
+      "main": [[{ "node": "Kandidaten laden", "type": "main", "index": 0 }]]
+    },
+    "Kandidaten laden": {
+      "main": [[{ "node": "CSV erstellen", "type": "main", "index": 0 }]]
+    },
+    "CSV erstellen": {
+      "main": [[{ "node": "In Google Drive speichern", "type": "main", "index": 0 }]]
+    }
+  }
+}
