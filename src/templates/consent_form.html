@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Datenschutz-Einwilligung | {{ company_name }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .candidate-info {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 4px;
+        }
+
+        .candidate-info h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .candidate-info p {
+            margin: 8px 0;
+            font-size: 15px;
+        }
+
+        .candidate-info strong {
+            color: #555;
+        }
+
+        .privacy-section {
+            margin: 30px 0;
+        }
+
+        .privacy-section h2 {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .privacy-section h3 {
+            font-size: 16px;
+            color: #667eea;
+            margin: 20px 0 10px;
+        }
+
+        .privacy-section p, .privacy-section ul {
+            margin-bottom: 15px;
+            font-size: 15px;
+            line-height: 1.8;
+        }
+
+        .privacy-section ul {
+            padding-left: 25px;
+        }
+
+        .privacy-section li {
+            margin: 8px 0;
+        }
+
+        .highlight-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .consent-checkboxes {
+            margin: 30px 0;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .checkbox-group {
+            margin: 20px 0;
+        }
+
+        .checkbox-group label {
+            display: flex;
+            align-items: flex-start;
+            cursor: pointer;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 12px;
+            margin-top: 4px;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .checkbox-group.required label {
+            font-weight: 600;
+        }
+
+        .checkbox-group.optional {
+            opacity: 0.85;
+        }
+
+        .signature-section {
+            margin: 30px 0;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px dashed #667eea;
+        }
+
+        .signature-section h3 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .signature-input {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-family: 'Brush Script MT', cursive;
+            transition: border-color 0.3s;
+        }
+
+        .signature-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .signature-help {
+            font-size: 13px;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        .submit-section {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 50px;
+            font-size: 18px;
+            font-weight: 600;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 20px;
+            border-radius: 4px;
+            margin: 20px 0;
+            text-align: center;
+            display: none;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 600px) {
+            .content {
+                padding: 30px 20px;
+            }
+
+            .header {
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .btn-submit {
+                width: 100%;
+                padding: 16px 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Datenschutz-Einwilligung</h1>
+            <p>{{ company_name }}</p>
+        </div>
+
+        <div class="content">
+            <!-- Kandidaten-Information -->
+            <div class="candidate-info">
+                <h2>Ihre Daten</h2>
+                <p><strong>Name:</strong> {{ candidate_name }}</p>
+                <p><strong>Telefon:</strong> {{ candidate_phone }}</p>
+                {% if candidate_email %}
+                <p><strong>Email:</strong> {{ candidate_email }}</p>
+                {% endif %}
+                <p><strong>Datum:</strong> {{ current_date }}</p>
+            </div>
+
+            <!-- Datenschutzerklärung (Kurzfassung) -->
+            <div class="privacy-section">
+                <h2>🔒 Datenschutzerklärung</h2>
+
+                <h3>Warum benötigen wir Ihre Einwilligung?</h3>
+                <p>
+                    Wir möchten Sie über passende Karrieremöglichkeiten in der Hörakustik-Branche informieren.
+                    Dafür benötigen wir Ihre ausdrückliche Einwilligung zur Verarbeitung Ihrer personenbezogenen Daten.
+                </p>
+
+                <h3>Welche Daten verarbeiten wir?</h3>
+                <ul>
+                    <li><strong>Kontaktdaten:</strong> Name, Telefonnummer, E-Mail-Adresse</li>
+                    <li><strong>Berufliche Daten:</strong> Aktueller Arbeitgeber, Position, Berufserfahrung</li>
+                    <li><strong>Gesprächsprotokolle:</strong> Notizen aus Telefonaten (falls Sie zustimmen)</li>
+                </ul>
+
+                <h3>Wofür verwenden wir Ihre Daten?</h3>
+                <ul>
+                    <li>Vermittlung passender Stellenangebote</li>
+                    <li>Kontaktaufnahme für relevante Karrieremöglichkeiten</li>
+                    <li>Dokumentation des Bewerbungsprozesses</li>
+                </ul>
+
+                <h3>Wie lange speichern wir Ihre Daten?</h3>
+                <p>
+                    Wir speichern Ihre Daten für maximal <strong>2 Jahre</strong> nach dem letzten Kontakt.
+                    Danach werden sie automatisch gelöscht oder anonymisiert.
+                </p>
+
+                <div class="highlight-box">
+                    <strong>⚠️ Wichtig:</strong> Sie können Ihre Einwilligung jederzeit widerrufen!
+                    Senden Sie dafür einfach eine E-Mail an: <strong>{{ contact_email }}</strong>
+                </div>
+
+                <h3>Ihre Rechte nach DSGVO:</h3>
+                <ul>
+                    <li>✅ <strong>Auskunftsrecht:</strong> Erfahren Sie, welche Daten wir über Sie speichern</li>
+                    <li>✏️ <strong>Berichtigungsrecht:</strong> Korrigieren Sie falsche Informationen</li>
+                    <li>🗑️ <strong>Löschungsrecht:</strong> Lassen Sie Ihre Daten löschen</li>
+                    <li>📦 <strong>Datenübertragbarkeit:</strong> Erhalten Sie Ihre Daten in maschinenlesbarem Format</li>
+                    <li>🚫 <strong>Widerrufsrecht:</strong> Widerrufen Sie Ihre Einwilligung jederzeit</li>
+                </ul>
+
+                <p>
+                    Die vollständige Datenschutzerklärung finden Sie hier:
+                    <a href="{{ privacy_policy_url }}" target="_blank">{{ privacy_policy_url }}</a>
+                </p>
+            </div>
+
+            <!-- Einwilligungserklärung -->
+            <form id="consentForm">
+                <input type="hidden" name="token" value="{{ consent_token }}">
+
+                <div class="consent-checkboxes">
+                    <h2>✍️ Ihre Einwilligung</h2>
+
+                    <!-- Pflicht-Einwilligung -->
+                    <div class="checkbox-group required">
+                        <label>
+                            <input type="checkbox" name="consent_data_processing" id="consent_data_processing" required>
+                            <span>
+                                <strong>Ich willige ein,</strong> dass {{ company_name }} meine personenbezogenen Daten
+                                (Name, Kontaktdaten, berufliche Informationen) für Recruiting-Zwecke verarbeitet und
+                                mich für passende Stellenangebote kontaktiert. Diese Einwilligung kann ich jederzeit widerrufen.
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Optional: Aufzeichnung -->
+                    <div class="checkbox-group optional">
+                        <label>
+                            <input type="checkbox" name="consent_recording" id="consent_recording">
+                            <span>
+                                Ich willige ein, dass Telefongespräche mit mir aufgezeichnet werden dürfen
+                                (für Qualitätssicherung und Dokumentation). <em>(Optional)</em>
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Optional: Marketing -->
+                    <div class="checkbox-group optional">
+                        <label>
+                            <input type="checkbox" name="consent_marketing" id="consent_marketing">
+                            <span>
+                                Ich willige ein, dass {{ company_name }} mir auch allgemeine Informationen
+                                und News aus der Branche zusenden darf. <em>(Optional)</em>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Digitale Signatur -->
+                <div class="signature-section">
+                    <h3>✍️ Digitale Unterschrift</h3>
+                    <p>Bitte geben Sie Ihren vollständigen Namen ein, um die Einwilligung digital zu unterzeichnen:</p>
+                    <input
+                        type="text"
+                        name="signature"
+                        id="signature"
+                        class="signature-input"
+                        placeholder="Max Mustermann"
+                        required
+                        autocomplete="name"
+                    >
+                    <p class="signature-help">
+                        💡 Ihre Eingabe gilt als rechtsverbindliche digitale Unterschrift.
+                    </p>
+                </div>
+
+                <!-- Error/Success Messages -->
+                <div class="error-message" id="errorMessage"></div>
+                <div class="success-message" id="successMessage">
+                    <h2>✅ Vielen Dank!</h2>
+                    <p>Ihre Einwilligung wurde erfolgreich gespeichert.</p>
+                    <p>Sie erhalten in Kürze eine Bestätigungs-E-Mail.</p>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="submit-section">
+                    <button type="submit" class="btn-submit" id="submitBtn">
+                        Einwilligung bestätigen
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="footer">
+            <p>
+                Bei Fragen kontaktieren Sie uns:<br>
+                📧 <a href="mailto:{{ contact_email }}">{{ contact_email }}</a> |
+                📞 {{ contact_phone }}<br>
+                <a href="{{ privacy_policy_url }}" target="_blank">Vollständige Datenschutzerklärung</a>
+            </p>
+            <p style="margin-top: 15px; font-size: 12px; color: #999;">
+                {{ company_name }} | {{ current_date }}
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('consentForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Disable submit button
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Wird gespeichert...';
+
+            // Hide messages
+            errorMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+
+            // Get form data
+            const formData = new FormData(form);
+            const data = {
+                token: formData.get('token'),
+                signature: formData.get('signature'),
+                consent_data_processing: formData.get('consent_data_processing') === 'on',
+                consent_recording: formData.get('consent_recording') === 'on',
+                consent_marketing: formData.get('consent_marketing') === 'on',
+                timestamp: new Date().toISOString()
+            };
+
+            try {
+                const response = await fetch('/gdpr/consent/submit-signature', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // Success
+                    successMessage.style.display = 'block';
+                    form.style.display = 'none';
+
+                    // Scroll to success message
+                    successMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    // Error
+                    errorMessage.textContent = result.message || 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.';
+                    errorMessage.style.display = 'block';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Einwilligung bestätigen';
+                }
+            } catch (error) {
+                errorMessage.textContent = 'Ein Netzwerkfehler ist aufgetreten. Bitte prüfen Sie Ihre Internetverbindung.';
+                errorMessage.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Einwilligung bestätigen';
+            }
+        });
+
+        // Real-time validation
+        const requiredCheckbox = document.getElementById('consent_data_processing');
+        const signatureInput = document.getElementById('signature');
+
+        function validateForm() {
+            const isValid = requiredCheckbox.checked && signatureInput.value.trim().length > 2;
+            submitBtn.disabled = !isValid;
+        }
+
+        requiredCheckbox.addEventListener('change', validateForm);
+        signatureInput.addEventListener('input', validateForm);
+
+        // Initial validation
+        validateForm();
+    </script>
+</body>
+</html>

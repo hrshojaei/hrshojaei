@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     contact_email: str = "recruiting@example.com"
     contact_phone: str = "+491234567890"
 
+    # GDPR/Privacy
+    privacy_policy_url: str = "http://localhost:8000/datenschutz"
+
     # Conversation Settings
     default_language: str = "de-DE"
     max_conversation_turns: int = 20
