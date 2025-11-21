@@ -58,6 +58,22 @@ class Settings(BaseSettings):
     contact_email: str = "recruiting@example.com"
     contact_phone: str = "+491234567890"
 
+    # Email Configuration (for consent requests)
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    from_email_override: Optional[str] = None  # Falls None, wird contact_email verwendet
+    from_name_override: Optional[str] = None  # Falls None, wird company_name verwendet
+
+    def get_from_email(self) -> str:
+        """Return from_email or fallback to contact_email"""
+        return self.from_email_override or self.contact_email
+
+    def get_from_name(self) -> str:
+        """Return from_name or fallback to company_name"""
+        return self.from_name_override or self.company_name
+
     # Conversation Settings
     default_language: str = "de-DE"
     max_conversation_turns: int = 20

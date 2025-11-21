@@ -55,6 +55,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Include consent management routes
+from src.consent_routes import router as consent_router
+app.include_router(consent_router)
+
 
 @app.get("/")
 async def root():
@@ -410,6 +414,80 @@ def add_candidate_cli():
         print(f"\n✗ Error adding candidate: {e}")
 
 
+def send_consent_request_cli():
+    """Interactive CLI to send consent request"""
+    from src.consent_manager import ConsentManager
+    from src.email_service import EmailService
+
+    print("\n📧 Send Consent Request")
+    print("=" * 50)
+
+    email = input("Email: ")
+    purpose = input("Purpose (default: 'Kontaktaufnahme und Datenspeicherung'): ") or "Kontaktaufnahme und Datenspeicherung"
+
+    consent_manager = ConsentManager()
+    email_service = EmailService()
+
+    try:
+        # Create consent request
+        consent_request = consent_manager.create_consent_request(email, purpose)
+        print(f"\n✓ Consent request created with token: {consent_request.token}")
+
+        # Send email
+        success = email_service.send_consent_request(
+            to_email=email,
+            token=consent_request.token,
+            purpose=purpose
+        )
+
+        if success:
+            consent_link = f"{settings.public_url}/consent/{consent_request.token}"
+            print(f"✓ Email sent successfully!")
+            print(f"\nConsent link: {consent_link}")
+        else:
+            print(f"✗ Failed to send email")
+
+    except Exception as e:
+        print(f"\n✗ Error: {e}")
+
+
+def check_consent_status_cli():
+    """Interactive CLI to check consent status"""
+    from src.consent_manager import ConsentManager
+
+    print("\n🔍 Check Consent Status")
+    print("=" * 50)
+
+    email = input("Email: ")
+
+    consent_manager = ConsentManager()
+
+    try:
+        requests = consent_manager.get_consent_status(email)
+        has_consent = consent_manager.has_valid_consent(email)
+
+        print(f"\nEmail: {email}")
+        print(f"Has valid consent: {'✓ Yes' if has_consent else '✗ No'}")
+        print(f"Total requests: {len(requests)}")
+
+        if requests:
+            print("\nConsent Requests:")
+            print("-" * 80)
+            for req in requests:
+                status = "✓ Given" if req.consent_given else "⏳ Pending"
+                print(f"\nID: {req.id}")
+                print(f"Purpose: {req.purpose}")
+                print(f"Created: {req.created_at}")
+                print(f"Status: {status}")
+                if req.consent_given:
+                    print(f"Confirmed: {req.consent_timestamp}")
+                    if req.ip_address:
+                        print(f"IP: {req.ip_address}")
+
+    except Exception as e:
+        print(f"\n✗ Error: {e}")
+
+
 def main():
     """Main CLI entry point"""
     if len(sys.argv) < 2:
@@ -422,6 +500,8 @@ Usage:
     python -m src.main campaign [max_calls]   - Start calling campaign
     python -m src.main add                    - Add a candidate
     python -m src.main stats                  - Show statistics
+    python -m src.main send-consent           - Send consent request via email
+    python -m src.main check-consent          - Check consent status
 
 Examples:
     python -m src.main server
@@ -429,6 +509,8 @@ Examples:
     python -m src.main campaign 10
     python -m src.main add
     python -m src.main stats
+    python -m src.main send-consent
+    python -m src.main check-consent
         """)
         return
 
@@ -454,6 +536,12 @@ Examples:
 
     elif command == "stats":
         show_statistics()
+
+    elif command == "send-consent":
+        send_consent_request_cli()
+
+    elif command == "check-consent":
+        check_consent_status_cli()
 
     else:
         print(f"Unknown command: {command}")
