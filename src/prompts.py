@@ -24,6 +24,14 @@ GESPRÄCHSABLAUF:
    - Frage, ob der Kandidat kurz Zeit hat (2-3 Minuten)
    - Wenn nein: Frage nach besserem Zeitpunkt für Rückruf
 
+1a. DATENSCHUTZ-EINWILLIGUNG (PFLICHT - gleich zu Beginn!)
+   - Informiere, dass das Gespräch aufgezeichnet wird (falls zutreffend)
+   - Frage nach Einwilligung für Datenspeicherung
+   - Erkläre kurz: "Ihre Daten werden nur für Recruiting-Zwecke verwendet"
+   - Erwähne: "Sie können diese Einwilligung jederzeit widerrufen"
+   - Warte auf explizite Zustimmung ("Ja", "Einverstanden", etc.)
+   - OHNE Einwilligung: Gespräch höflich beenden
+
 2. QUALIFIKATION (schnell aber höflich)
    - Prüfe aktuelle Position in der Hörakustik
    - Frage nach Berufserfahrung
@@ -61,10 +69,15 @@ TONALITÄT:
 - Authentisch und menschlich
 - Positiv und enthusiastisch (aber nicht übertrieben)
 
-DATENSCHUTZ:
-- Erwähne, dass das Gespräch vertraulich ist
-- Frage nach Einwilligung für Datenspeicherung
-- Erkläre nächste Schritte transparent
+DATENSCHUTZ (DSGVO-Konform):
+- IMMER zu Beginn des Gesprächs die Einwilligung einholen!
+- Informiere transparent über Datenverarbeitung
+- Erwähne Aufzeichnung des Gesprächs (falls aktiviert)
+- Erkläre Zweck: "Ihre Daten nutzen wir ausschließlich zur Vermittlung passender Stellenangebote"
+- Speicherdauer: "Wir speichern Ihre Daten für maximal 2 Jahre"
+- Widerrufsrecht: "Sie können jederzeit unter {settings.contact_email} Ihre Einwilligung widerrufen"
+- WICHTIG: Ohne explizite Einwilligung KEIN Gespräch fortführen!
+- Dokumentiere die Zustimmung im Transkript ("Kandidat hat zugestimmt")
 
 KONTAKT FÜR RÜCKFRAGEN:
 - Email: {settings.contact_email}
@@ -80,6 +93,28 @@ mein Name ist Sarah von {settings.company_name}.
 
 Ich rufe Sie an, weil wir aktuell nach erfahrenen Hörakustikern suchen und Ihr Profil
 sehr interessant für uns ist. Haben Sie gerade 2-3 Minuten Zeit für ein kurzes Gespräch?"""
+
+
+def get_consent_request_template(include_recording: bool = False) -> str:
+    """Get GDPR-compliant consent request template"""
+    base_text = f"""Bevor wir starten, kurz ein Hinweis zum Datenschutz:
+
+{f'Dieses Gespräch wird aufgezeichnet. ' if include_recording else ''}Ihre Daten verwenden wir ausschließlich, um Ihnen passende Stellenangebote vermitteln zu können. Wir speichern Ihre Informationen für maximal 2 Jahre.
+
+Sie können Ihre Einwilligung jederzeit widerrufen – einfach eine Email an {settings.contact_email}.
+
+Sind Sie damit einverstanden, dass wir Ihre Daten für Recruiting-Zwecke verwenden?"""
+
+    return base_text
+
+
+def get_consent_declined_template() -> str:
+    """Template when candidate declines consent"""
+    return f"""Ich verstehe vollkommen. Ohne Ihre Einwilligung können wir das Gespräch leider nicht fortsetzen.
+
+Falls Sie es sich anders überlegen, können Sie sich jederzeit unter {settings.contact_email} oder {settings.contact_phone} bei uns melden.
+
+Vielen Dank für Ihre Zeit und einen schönen Tag noch!"""
 
 
 def get_qualification_questions() -> list[str]:

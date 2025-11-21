@@ -14,6 +14,7 @@ from src.candidate_manager import CandidateManager
 from src.twilio_client import TwilioVoiceClient, TwiMLGenerator
 from src.sipgate_client import SipgateClient, SipgateXMLResponse
 from src.call_handler import call_handler
+from src.gdpr_api import router as gdpr_router
 
 
 def get_telephony_client():
@@ -54,6 +55,9 @@ app = FastAPI(
     description="Automated recruitment calls for Hörakustik industry",
     version="1.0.0"
 )
+
+# Include GDPR/DSGVO API router
+app.include_router(gdpr_router)
 
 
 @app.get("/")

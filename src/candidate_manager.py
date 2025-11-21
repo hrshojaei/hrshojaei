@@ -38,6 +38,17 @@ class Candidate:
     updated_at: Optional[str] = None
     last_contact_at: Optional[str] = None
 
+    # DSGVO/Privacy fields
+    consent_given: Optional[bool] = None
+    consent_timestamp: Optional[str] = None
+    consent_method: Optional[str] = None  # 'phone', 'email', 'web', 'sms'
+    consent_version: Optional[str] = None  # e.g., "v1.0"
+    recording_consent: Optional[bool] = None
+    marketing_consent: Optional[bool] = None
+    data_retention_until: Optional[str] = None
+    opted_out: Optional[bool] = False
+    opted_out_at: Optional[str] = None
+
     def to_dict(self) -> dict:
         """Convert to dictionary"""
         return {k: v for k, v in asdict(self).items() if v is not None}
@@ -75,6 +86,38 @@ class CandidateManager:
         conn.row_factory = sqlite3.Row
         return conn
 
+    def _migrate_privacy_fields(self, conn: sqlite3.Connection):
+        """Add privacy fields to existing candidates table if they don't exist"""
+        cursor = conn.cursor()
+
+        # Get existing columns
+        cursor.execute("PRAGMA table_info(candidates)")
+        existing_columns = {row[1] for row in cursor.fetchall()}
+
+        # Define privacy fields to add
+        privacy_fields = {
+            'consent_given': 'INTEGER DEFAULT 0',
+            'consent_timestamp': 'TIMESTAMP',
+            'consent_method': 'TEXT',
+            'consent_version': 'TEXT',
+            'recording_consent': 'INTEGER DEFAULT 0',
+            'marketing_consent': 'INTEGER DEFAULT 0',
+            'data_retention_until': 'TIMESTAMP',
+            'opted_out': 'INTEGER DEFAULT 0',
+            'opted_out_at': 'TIMESTAMP'
+        }
+
+        # Add missing columns
+        for field_name, field_type in privacy_fields.items():
+            if field_name not in existing_columns:
+                try:
+                    conn.execute(f"ALTER TABLE candidates ADD COLUMN {field_name} {field_type}")
+                    logger.info(f"Added privacy field: {field_name}")
+                except sqlite3.OperationalError as e:
+                    logger.warning(f"Could not add field {field_name}: {e}")
+
+        conn.commit()
+
     def _init_database(self):
         """Initialize database schema"""
         with self._get_connection() as conn:
@@ -92,9 +135,23 @@ class CandidateManager:
                     notes TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    last_contact_at TIMESTAMP
+                    last_contact_at TIMESTAMP,
+
+                    -- DSGVO/Privacy fields
+                    consent_given INTEGER DEFAULT 0,
+                    consent_timestamp TIMESTAMP,
+                    consent_method TEXT,
+                    consent_version TEXT,
+                    recording_consent INTEGER DEFAULT 0,
+                    marketing_consent INTEGER DEFAULT 0,
+                    data_retention_until TIMESTAMP,
+                    opted_out INTEGER DEFAULT 0,
+                    opted_out_at TIMESTAMP
                 )
             """)
+
+            # Migrate existing databases: Add privacy columns if they don't exist
+            self._migrate_privacy_fields(conn)
 
             # Call logs table
             conn.execute("""
@@ -318,7 +375,226 @@ class CandidateManager:
             """).fetchone()['avg']
             stats['avg_call_duration_seconds'] = round(avg_duration) if avg_duration else 0
 
+            # Privacy/Consent statistics
+            stats['consent_given'] = conn.execute(
+                "SELECT COUNT(*) as count FROM candidates WHERE consent_given = 1"
+            ).fetchone()['count']
+            stats['opted_out'] = conn.execute(
+                "SELECT COUNT(*) as count FROM candidates WHERE opted_out = 1"
+            ).fetchone()['count']
+
             return stats
+
+    # ========== DSGVO/Privacy Management Methods ==========
+
+    def set_consent(
+        self,
+        candidate_id: int,
+        consent_given: bool = True,
+        consent_method: str = 'phone',
+        consent_version: str = 'v1.0',
+        recording_consent: bool = False,
+        marketing_consent: bool = False,
+        retention_days: int = 730  # 2 years default
+    ) -> bool:
+        """
+        Set consent for a candidate
+
+        Args:
+            candidate_id: The candidate's ID
+            consent_given: Whether consent was given
+            consent_method: Method of consent ('phone', 'email', 'web', 'sms')
+            consent_version: Version of privacy policy accepted
+            recording_consent: Consent for call recording
+            marketing_consent: Consent for marketing communications
+            retention_days: Number of days to retain data (default: 730 = 2 years)
+
+        Returns:
+            bool: Success status
+        """
+        from datetime import datetime, timedelta
+
+        with self._get_connection() as conn:
+            retention_date = (datetime.now() + timedelta(days=retention_days)).isoformat()
+
+            conn.execute("""
+                UPDATE candidates
+                SET consent_given = ?,
+                    consent_timestamp = CURRENT_TIMESTAMP,
+                    consent_method = ?,
+                    consent_version = ?,
+                    recording_consent = ?,
+                    marketing_consent = ?,
+                    data_retention_until = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (
+                1 if consent_given else 0,
+                consent_method,
+                consent_version,
+                1 if recording_consent else 0,
+                1 if marketing_consent else 0,
+                retention_date,
+                candidate_id
+            ))
+            conn.commit()
+
+            logger.info(f"Set consent for candidate {candidate_id}: given={consent_given}, method={consent_method}")
+            return True
+
+    def revoke_consent(self, candidate_id: int) -> bool:
+        """
+        Revoke consent and mark candidate as opted out
+
+        Args:
+            candidate_id: The candidate's ID
+
+        Returns:
+            bool: Success status
+        """
+        with self._get_connection() as conn:
+            conn.execute("""
+                UPDATE candidates
+                SET opted_out = 1,
+                    opted_out_at = CURRENT_TIMESTAMP,
+                    consent_given = 0,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (candidate_id,))
+            conn.commit()
+
+            logger.info(f"Consent revoked for candidate {candidate_id}")
+            return True
+
+    def has_valid_consent(self, candidate_id: int) -> bool:
+        """
+        Check if candidate has valid consent
+
+        Args:
+            candidate_id: The candidate's ID
+
+        Returns:
+            bool: True if consent is valid and not opted out
+        """
+        from datetime import datetime
+
+        candidate = self.get_candidate(candidate_id=candidate_id)
+        if not candidate:
+            return False
+
+        # Check if opted out
+        if candidate.opted_out:
+            return False
+
+        # Check if consent given
+        if not candidate.consent_given:
+            return False
+
+        # Check if data retention period expired
+        if candidate.data_retention_until:
+            retention_date = datetime.fromisoformat(candidate.data_retention_until)
+            if datetime.now() > retention_date:
+                logger.warning(f"Data retention expired for candidate {candidate_id}")
+                return False
+
+        return True
+
+    def delete_candidate_data(self, candidate_id: int, anonymize: bool = False) -> bool:
+        """
+        Delete or anonymize candidate data (DSGVO right to erasure)
+
+        Args:
+            candidate_id: The candidate's ID
+            anonymize: If True, anonymize instead of delete
+
+        Returns:
+            bool: Success status
+        """
+        with self._get_connection() as conn:
+            if anonymize:
+                # Anonymize personal data but keep record for statistics
+                conn.execute("""
+                    UPDATE candidates
+                    SET name = 'ANONYMIZED',
+                        phone = 'DELETED_' || id,
+                        email = NULL,
+                        current_company = NULL,
+                        current_position = NULL,
+                        notes = 'Data anonymized per DSGVO request',
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                """, (candidate_id,))
+
+                # Anonymize call transcripts
+                conn.execute("""
+                    UPDATE call_logs
+                    SET transcript = 'ANONYMIZED',
+                        summary = 'Data anonymized per DSGVO request'
+                    WHERE candidate_id = ?
+                """, (candidate_id,))
+
+                logger.info(f"Anonymized data for candidate {candidate_id}")
+            else:
+                # Full deletion
+                conn.execute("DELETE FROM conversation_history WHERE call_log_id IN (SELECT id FROM call_logs WHERE candidate_id = ?)", (candidate_id,))
+                conn.execute("DELETE FROM call_logs WHERE candidate_id = ?", (candidate_id,))
+                conn.execute("DELETE FROM candidates WHERE id = ?", (candidate_id,))
+                logger.info(f"Deleted all data for candidate {candidate_id}")
+
+            conn.commit()
+            return True
+
+    def export_candidate_data(self, candidate_id: int) -> Optional[Dict]:
+        """
+        Export all candidate data (DSGVO right to data portability)
+
+        Args:
+            candidate_id: The candidate's ID
+
+        Returns:
+            Dict: All candidate data including call history
+        """
+        candidate = self.get_candidate(candidate_id=candidate_id)
+        if not candidate:
+            return None
+
+        call_history = self.get_candidate_history(candidate_id)
+
+        # Build complete export
+        export_data = {
+            'candidate': candidate.to_dict(),
+            'call_logs': [call.to_dict() for call in call_history],
+            'conversation_history': []
+        }
+
+        # Add conversation history for each call
+        for call in call_history:
+            if call.id:
+                conversations = self.get_conversation_history(call.id)
+                export_data['conversation_history'].extend(conversations)
+
+        logger.info(f"Exported data for candidate {candidate_id}")
+        return export_data
+
+    def get_candidates_needing_deletion(self) -> List[Candidate]:
+        """
+        Get candidates whose data retention period has expired
+
+        Returns:
+            List[Candidate]: Candidates that should be deleted
+        """
+        from datetime import datetime
+
+        with self._get_connection() as conn:
+            now = datetime.now().isoformat()
+            rows = conn.execute("""
+                SELECT * FROM candidates
+                WHERE data_retention_until IS NOT NULL
+                AND data_retention_until < ?
+                AND opted_out = 0
+            """, (now,)).fetchall()
+
+            return [Candidate(**dict(row)) for row in rows]
 
 
 # CLI interface for testing
